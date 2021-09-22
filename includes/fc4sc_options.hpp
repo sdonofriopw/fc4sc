@@ -90,7 +90,7 @@ struct cvg_option
    */
   friend inline std::ostream &operator<<(std::ostream &stream, const cvg_option &inst)
   {
-    stream << "<ucis:options ";
+    stream << "<options ";
     stream << "weight=\"" << inst.weight << "\" ";
     stream << "goal=\"" << inst.goal << "\" ";
     stream << "comment=\"" << inst.comment << "\" ";
@@ -145,7 +145,7 @@ struct cvp_option
    */
   friend std::ostream &operator<<(std::ostream &stream, const cvp_option &inst)
   {
-    stream << "<ucis:options ";
+    stream << "<options ";
     stream << "weight=\"" << inst.weight << "\" ";
     stream << "goal=\"" << inst.goal << "\" ";
     stream << "comment=\"" << inst.comment << "\" ";

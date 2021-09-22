@@ -236,20 +236,20 @@ public:
 
     stream << option << "\n";
 
-    stream << "<ucis:cgId cgName=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
+    stream << "<cgId cgName=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
     stream << "moduleName=\""
            << "INST_PARENT_MODULE"
            << "\">\n";
 
-    stream << "<ucis:cginstSourceId file=\""
-           << "1"
+    stream << "<cginstSourceId file=\""
+           << fc4sc::global::get_file_id(file_name)
            << "\" line=\""
-           << "1"
+           << "1"  // STEVE FIXME HARDCODED
            << "\" inlineCount=\"1\"/>\n";
-    stream << "<ucis:cgSourceId file=\"" << file_name << "\" "
+    stream << "<cgSourceId file=\"" << file_name << "\" "
            << "line=\"" << line << "\""
-           << " inlineCount=\"1\"/>\n";
-    stream << "</ucis:cgId>\n";
+           << " inlineCount=\"1\"/>\n";  // STEVE FIXME HARDCODED
+    stream << "</cgId>\n";
 
     // Print coverpoints
     for (auto& cvp : cvps)

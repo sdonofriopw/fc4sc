@@ -273,6 +273,22 @@ public:
     return bins.size();
   }
 
+  /*!
+   *  \brief Retrieves all bins used by the coverage point
+   */
+  std::vector<bin<T>> get_bins() {
+    return bins;
+  }
+
+  /*!
+   *  \brief Retrieves the bin name
+   *  \param index of the bin
+   */
+  // FIXME STEVE add defensive code
+  std::string get_bin_name(uint64_t indx) const {
+    return bins[indx].get_bin_name();
+  }
+
   void sample() 
   {
     if (has_sample_expression) {
@@ -384,7 +400,7 @@ public:
    */
   virtual void to_xml(std::ostream &stream) const
   {
-    stream << "<ucis:coverpoint ";
+    stream << "<coverpoint ";
     stream << "name=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
     stream << "key=\""
            << "KEY"
@@ -401,7 +417,7 @@ public:
     for (auto &bin : ignore_bins)
       bin.to_xml(stream);
 
-    stream << "</ucis:coverpoint>\n\n";
+    stream << "</coverpoint>\n\n";
   }
 
 };

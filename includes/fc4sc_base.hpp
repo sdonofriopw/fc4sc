@@ -283,6 +283,9 @@ public:
   /*! File where this type is declared */
   std::string file_name;
 
+  /*! File name id lookup hash */
+  uint32_t file_id;
+  
   /*! Aproximate line where this type is declared */
   uint32_t line;
 };

@@ -47,7 +47,14 @@ public:
 
 TEST(coverpoint, control) {
   basic_coverpoint_definitions_cvg cvg("cvg");
+    basic_coverpoint_definitions_cvg cvg2("cvg2");  
+
   EXPECT_EQ(cvg.get_inst_coverage(), 0);
   cvg.sample();
   EXPECT_EQ(cvg.get_inst_coverage(), 100);
+   EXPECT_EQ(cvg2.get_inst_coverage(), 0);
+
+  fc4sc::global::coverage_save("basic_coverpoint_definition_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+
+
 }

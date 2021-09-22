@@ -60,6 +60,7 @@ class global
       cvg_type_option type_option;
       std::string type_name;
       std::string file_name;
+      uint32_t file_id;      
       uint32_t line;
       uint32_t index = 0;
 
@@ -88,7 +89,14 @@ class global
     /*! Table keeping instances data grouped by type */
     std::unordered_map<std::string, metadata> cv_data;
 
+    
+    
   public:
+
+    /*! Table keeping track of file name  */
+    std::unordered_map<std::string, uint32_t> cv_file_name;
+    
+
     /*!
      * \brief Adds a new instance to the global table
      * \param type_name Type of covergroup stringified
@@ -102,6 +110,15 @@ class global
                       const int line,
                       const std::string &inst_name = "")
     {
+      uint32_t file_id;
+
+      // does file name exists?
+      if (cv_file_name.find(file_name) == cv_file_name.end())
+      {
+        file_id = cv_file_name.size();
+        cv_file_name[file_name] = file_id;
+      }
+
       // New type registered
       if (cv_data.find(type_name) == cv_data.end())
       {
@@ -110,11 +127,12 @@ class global
 
         temp.type_name = type_name;
         temp.file_name = file_name;
-        temp.line = line;
+        temp.file_id = file_id;
+        temp.line = cv_file_name[file_name];
 
         cv_data[type_name] = temp;
       }
-
+      
       // Add the instance
       cv_data[type_name].cvg_insts.push_back(cvg);
 
@@ -127,9 +145,10 @@ class global
       else
       {
         cvg->name = inst_name;
-        cv_data[type_name].cvg_insts_name.push_back(inst_name);
+        cv_data[type_name].cvg_insts_name.push_back(inst_name);        
       }
 
+      
     }
 
     void register_delete(cvg_base *cvg)
@@ -161,7 +180,7 @@ class global
       // Header
       stream << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
              << "\n";
-      stream << "<ucis:UCIS xmlns:ucis=\"http://www.w3.org/2001/XMLSchema-instance\" ucisVersion=\"1.0\" ";
+      stream << "<UCIS xmlns:ucis=\"http://www.w3.org/2001/XMLSchema-instance\" ucisVersion=\"1.0\" ";
       stream << " writtenBy=\""
              << "$USER"
              << "\"\n";
@@ -170,8 +189,16 @@ class global
              << "\"";
       stream << ">\n";
 
+      
+      for( const std::pair<std::string, uint32_t>& n : cv_file_name ) {
+        stream << "<sourceFiles ";
+        stream << "fileName=\"" << n.first  << "\" ";
+        stream << "id=\"" <<  n.second << "\" ";
+        stream << "/>\n";
+      }
+        
       // Needed information but not filled
-      stream << "<ucis:sourceFiles ";
+      /*      stream << "<sourceFiles ";
       stream << " fileName=\""
              << "string"
              << "\"";
@@ -179,9 +206,10 @@ class global
              << "201"
              << "\" ";
       stream << "/>\n";
-
+      */
+      
       // Needed information but not filled
-      stream << "<ucis:historyNodes ";
+      stream << "<historyNodes ";
       stream << "historyNodeId=\"" << 200 << "\" \n";
       stream << "parentId=\"" << 200 << "\" \n";
       stream << "logicalName=\""
@@ -251,7 +279,7 @@ class global
              << "string"
              << "\" \n";
       stream << ">\n";
-      stream << "</ucis:historyNodes>\n";
+      stream << "</historyNodes>\n";
 
       static int key = 0;
 
@@ -259,7 +287,7 @@ class global
       for (auto &type_it : cv_data)
       {
 
-        stream << "<ucis:instanceCoverages ";
+        stream << "<instanceCoverages ";
         stream << "name=\""
                << "string"
                << "\" \n";
@@ -272,15 +300,8 @@ class global
         stream << "parentInstanceId=\"" << 0 << "\" \n";
         stream << ">\n";
 
-        stream << "<ucis:id ";
-        stream << "file=\"" << type_it.second.file_name << "\" ";
-        stream << "line=\"" << type_it.second.line << "\" ";
-        stream << "inlineCount=\""
-               << "1"
-               << "\" ";
-        stream << "/>\n";
 
-        stream << "<ucis:covergroupCoverage ";
+        stream << "<covergroupCoverage ";
         stream << "weight=\"" << 1 << "\" ";
         stream << ">\n";
 
@@ -288,7 +309,7 @@ class global
         for (size_t i = 0; i < type_it.second.cvg_insts.size(); ++i)
         {
 
-          stream << "<ucis:cgInstance ";
+          stream << "<cgInstance ";
           stream << "name=\"" << type_it.second.cvg_insts_name[i] << "\" \n";
 
           stream << "key=\"" << ++key << "\" \n";
@@ -303,15 +324,15 @@ class global
           // stream << (*(type_it.second.cvg_insts[i])) << "\n";
           type_it.second.cvg_insts[i]->to_xml(stream);
           stream << "\n";
-          stream << "</ucis:cgInstance>\n";
+          stream << "</cgInstance>\n";
         }
 
-        stream << "</ucis:covergroupCoverage>\n";
+        stream << "</covergroupCoverage>\n";
 
-        stream << "</ucis:instanceCoverages>\n";
+        stream << "</instanceCoverages>\n";
       }
 
-      stream << "</ucis:UCIS>\n";
+      stream << "</UCIS>\n";
 
       key = 0;
       return stream;
@@ -451,6 +472,12 @@ public:
     return global->type_option(type);
   }
 
+  static uint32_t get_file_id(const std::string &file_name)
+  {
+    main_controller *global = getter();
+    return global->cv_file_name[file_name]; 
+  }
+  
   /*!
   * \brief Computes the coverage percentage across all instances of all types
   * \returns Double between 0 and 100

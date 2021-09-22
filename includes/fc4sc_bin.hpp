@@ -130,7 +130,7 @@ public:
   explicit bin(const std::string &bin_name, Args... args) noexcept : bin(args...) {
     static_assert(forbid_type<std::string, Args...>::value, "Bin constructor accepts only 1 name argument!");
     this->name = bin_name;
-    this->ucis_bin_type = "default";
+    this->ucis_bin_type = "user";
   }
 
   /*!
@@ -144,11 +144,29 @@ public:
   /*! Default Destructor */
   virtual ~bin() = default;
 
+  /*!
+   *  \brief Return the bin name
+   */
+  std::string get_bin_name() const
+  {
+    return name;
+  }
+  
   uint64_t get_hitcount() const
   {
     return hits;
   }
 
+  std::vector<interval_t<T>> get_bin_intervals() const
+  {
+    return intervals;
+  }
+
+  std::string get_bin_type() const
+  {
+    return ucis_bin_type;
+  }
+  
   /*!
    * \brief Samples the given value and increments hit counts
    * \param val Current sampled value
@@ -191,7 +209,7 @@ public:
    */
   virtual void to_xml(std::ostream &stream) const
   {
-    stream << "<ucis:coverpointBin name=\"" << fc4sc::global::escape_xml_chars(name) << "\" \n";
+    stream << "<coverpointBin name=\"" << fc4sc::global::escape_xml_chars(name) << "\" \n";
     stream << "type=\""
            << this->ucis_bin_type
            << "\" "
@@ -201,7 +219,7 @@ public:
     // Print each range. Coverpoint writes the header (name etc.)
     for (size_t i = 0; i < this->intervals.size(); ++i)
     {
-      stream << "<ucis:range \n"
+      stream << "<range \n"
 	  // Adding "+" before the "this->intervals[i].first" and "this->intervals[i].second"
 	  // operands which promotes them to numeric types. This means that char-based types
 	  // will be output (in the UCIS DB) in numeric form.
@@ -212,13 +230,13 @@ public:
              << ">\n";
 
       // Print hits for each range
-      stream << "<ucis:contents "
+      stream << "<contents "
              << "coverageCount=\"" << this->hits << "\">";
-      stream << "</ucis:contents>\n";
-      stream << "</ucis:range>\n\n";
+      stream << "</contents>\n";
+      stream << "</range>\n\n";
     }
 
-    stream << "</ucis:coverpointBin>\n";
+    stream << "</coverpointBin>\n";
   }
 
   friend std::vector<interval_t<T>> reunion<T>(const bin<T>& lhs, const std::vector<interval_t<T>>& rhs);
