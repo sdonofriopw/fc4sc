@@ -110,7 +110,7 @@ class global
                       const int line,
                       const std::string &inst_name = "")
     {
-      uint32_t file_id;
+      uint32_t file_id=0;
 
       // does file name exists?
       if (cv_file_name.find(file_name) == cv_file_name.end())
