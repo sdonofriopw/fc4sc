@@ -43,6 +43,8 @@ public:
   COVERPOINT(int         , cvp_int         , var_int         ) { bin<int         >("65", 65) };
   COVERPOINT(unsigned int, cvp_unsigned_int, var_unsigned_int) { bin<unsigned int>("65", 65) };
   COVERPOINT(long        , cvp_long        , var_long        ) { bin<long        >("65", 65) };
+
+
 };
 
 TEST(coverpoint, control) {
@@ -53,7 +55,8 @@ TEST(coverpoint, control) {
   cvg.sample();
   EXPECT_EQ(cvg.get_inst_coverage(), 100);
    EXPECT_EQ(cvg2.get_inst_coverage(), 0);
-
+   cvg2.sample();
+   
   fc4sc::global::coverage_save("basic_coverpoint_definition_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
 
 

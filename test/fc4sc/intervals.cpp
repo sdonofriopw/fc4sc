@@ -79,5 +79,7 @@ TEST(intervals, reunion) {
     EXPECT_EQ(a_b[i].second, a_b_self[i].second);
   }
 
+  fc4sc::global::coverage_save("intervals_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+  
 
 }

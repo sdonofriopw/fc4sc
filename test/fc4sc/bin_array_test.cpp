@@ -65,6 +65,9 @@ TEST(bin_array, edge_cases) {
 
   for (int i = 1; i <= 5; i++) {
     cvg.sample(i);
+
+    fc4sc::global::coverage_save("bin_array_" + std::to_string(i) + "_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+    
     EXPECT_EQ(cvg.cvp1.get_inst_coverage(hit, total), (100/num_bins) * i);
     EXPECT_EQ(total, num_bins);
     EXPECT_EQ(hit, i);
@@ -91,4 +94,7 @@ TEST(bin_array, edge_cases) {
   EXPECT_EQ(cvg.cvp2.get_inst_coverage(hit,total), 100);
   EXPECT_EQ(total, 1);
   EXPECT_EQ(hit, 1);
+
+  fc4sc::global::coverage_save("bin_array_final_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+  
 }
