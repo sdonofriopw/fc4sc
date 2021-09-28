@@ -42,6 +42,69 @@
 
 #include "fc4sc_bin.hpp"
 
+
+class wildcard_cov {
+private:
+  std::string wildcard_name;
+  int unsigned mask_int;
+  int unsigned wildcard_int;
+public:  
+  wildcard_cov() {
+  }
+  wildcard_cov(std::string wildcard_in) {
+    wildcard_name = wildcard_in;
+    mask_int = calc_mask(wildcard_in);
+    wildcard_int = calc_wildcard(wildcard_in);
+    printf("wildcard_int for %s is %x mask is 0x%x\n", get_name().c_str(), wildcard_int, mask_int); 
+  }
+
+  std::string get_name() {
+    return(wildcard_name);
+  }
+
+  int unsigned calc_wildcard(std::string wildcard_in) {
+    std::string wildcard;
+    wildcard.resize(wildcard_in.length());
+    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
+      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
+        wildcard[i] = '0';
+      else if (wildcard_in[i] == '1')
+        wildcard[i] = '1';
+      else
+        wildcard[i] = '0';
+    }
+    return(std::stoi(wildcard,nullptr,2));
+  }
+  
+  int unsigned calc_mask(std::string wildcard_in) {
+    std::string mask;    
+    mask.resize(wildcard_in.length());
+    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
+      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
+        mask[i] = '0';
+      else
+        mask[i] = '1';
+    }
+    return(std::stoi(mask,nullptr,2));
+  }
+  
+  int unsigned sample(int unsigned data_in) {
+    int unsigned sample_out =  mask_int & data_in;
+    printf("wildcard sample for %s data_in %x wildcard %x mask is 0x%x sample out 0x%x\n",
+           get_name().c_str(),
+           data_in,
+           wildcard_int,
+           mask_int,
+           sample_out); 
+    
+    return(sample_out);
+  }
+  
+  int unsigned get_coverage_bin() {
+    return (wildcard_int);
+  }
+};
+
 namespace fc4sc
 {
 
@@ -78,7 +141,8 @@ private:
   friend class bin_array<T>;
   friend class ignore_bin<T>;
   friend class illegal_bin<T>;
-
+  wildcard_cov *wildcard=nullptr;
+  
   bool has_sample_expression = false;
   /*!
    * String-ified sample expression. It can be used for reporting.
@@ -129,6 +193,10 @@ private:
 #ifdef FC4SC_DISABLE_SAMPLING
     return;
 #endif
+    if (wildcard != nullptr) {
+      bins[0].sample(wildcard->sample(cvp_val));
+    }
+
     if (!collect) return;
     this->last_sample_success = false;
 
@@ -250,6 +318,30 @@ public:
     }
   }
 
+  template <typename... Args>
+  coverpoint(cvg_base *parent_cvg, wildcard_cov *wildcard_in) {
+    bin<int> wildcard_bin;
+    static_assert(forbid_type<cvg_base *, wildcard_cov *>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer!");
+    wildcard = wildcard_in;
+    wildcard_bin = bin<int>(wildcard->get_name(), wildcard->get_coverage_bin());
+    bins.push_back(wildcard_bin);
+
+    // Because the way that delegated constructors work, the coverpoint arguments
+    // processed in the reverse order, resulting in a reversed vector of bins.
+    std::reverse(bins.begin(), bins.end());
+    parent_cvg->register_cvp(this);
+
+    // set strings here
+    auto strings = parent_cvg->get_strings(this);
+
+    this->sample_point = static_cast<T *>(std::get<0>(strings));
+    this->name = std::get<1>(strings);
+    //    this->sample_expression_str = std::get<3>(strings);
+
+
+  };
+  
+  
   template <typename... Args>
   coverpoint(cvg_base *parent_cvg, Args... args) : coverpoint(args...) {
     static_assert(forbid_type<cvg_base *, Args...>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer!");
