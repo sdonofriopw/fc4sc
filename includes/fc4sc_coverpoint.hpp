@@ -321,7 +321,7 @@ public:
   template <typename... Args>
   coverpoint(cvg_base *parent_cvg, wildcard_cov *wildcard_in) {
     bin<int> wildcard_bin;
-    static_assert(forbid_type<cvg_base *, wildcard_cov *>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer!");
+    static_assert(forbid_type<cvg_base *, wildcard_cov *>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer and wildcard pointer!");
     wildcard = wildcard_in;
     wildcard_bin = bin<int>(wildcard->get_name(), wildcard->get_coverage_bin());
     bins.push_back(wildcard_bin);
