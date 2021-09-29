@@ -58,7 +58,7 @@ protected:
    * via the COVERPOINT macro and should not be explicitly used!
    */
   template<typename T>
-  coverpoint <T> register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
+  coverpoint <T> cg_register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
     std::function<T()>&& sample_expr, std::string&& sample_expr_str,
     std::function<bool()>&& sample_cond, std::string&& sample_cond_str) {
 

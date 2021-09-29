@@ -103,14 +103,14 @@ template<typename forbidden, typename first> struct forbid_type<forbidden, first
 // COVERPOINT macro for 3 arguments (no sample condition)
 #define CVP_3(type, cvp_name, sample_expr) \
         coverpoint<type> cvp_name = \
-        covergroup::register_cvp<type>(&cvp_name, #cvp_name, \
+        covergroup::cg_register_cvp<type>(&cvp_name, #cvp_name, \
         CREATE_WRAP_F(sample_expr, type), #sample_expr, \
         CREATE_WRAP_F(true, bool), std::string("")) =
 
 // COVERPOINT macro for 4 arguments (sample condition included)
 #define CVP_4(type, cvp_name, sample_expr, sample_cond) \
         coverpoint<type> cvp_name = \
-        covergroup::register_cvp<type>(&cvp_name, #cvp_name, \
+         covergroup::cg_register_cvp<type>(&cvp_name, #cvp_name, \
         CREATE_WRAP_F(sample_expr, type), #sample_expr, \
         CREATE_WRAP_F(sample_cond, bool), #sample_cond) =
 
@@ -255,6 +255,11 @@ public:
 class cvg_base : public api_base
 {
 public:
+  /*  template<typename T>
+  coverpoint <T> cg_register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
+    std::function<T()>&& sample_expr, std::string&& sample_expr_str,
+    std::function<bool()>&& sample_cond, std::string&& sample_cond_str) {
+    } */
   virtual void register_cvp(cvp_base* const cvp) {
     // Runtime check to make sure that all the coverpoints are different.
     // Normally, this should be the case, but if for whatever reason this
