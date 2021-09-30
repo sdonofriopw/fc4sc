@@ -29,17 +29,7 @@ public:
 
   CG_CONS(cvg_control_test) {};
 
-  wildcard_cov cov_xxx1{"xxx1"};
-  wildcard_cov cov_xx1x{"xx1x"};
-  wildcard_cov cov_x1xx{"x1xx"};
-
-  wildcard_cov cov_xxx0{"xxx0"};
-  wildcard_cov cov_xx0x{"xx0x"};
-  wildcard_cov cov_x0xx{"x0xx"};
-
-  wildcard_cov cov_1010{"1010"};
-
-  wildcard_cov cov_0101{"0101"};
+  
 
   int SAMPLE_POINT(sample_point1, cvp1);
   int SAMPLE_POINT(sample_point2, cvp2);
@@ -68,6 +58,18 @@ public:
     
     covergroup::sample();
   }
+
+  wildcard_cov cov_xxx1{"xxx_1__"};  
+  wildcard_cov cov_xx1x{"xx_1_x_"};
+  wildcard_cov cov_x1xx{"_x1xx"};
+
+  wildcard_cov cov_xxx0{"xx_x0"};
+  wildcard_cov cov_xx0x{"xx0x_"};
+  wildcard_cov cov_x0xx{"x0x_x"};
+
+  wildcard_cov cov_1010{"1010_"};
+
+  wildcard_cov cov_0101{"0____101"};
 
   coverpoint<int> cvp1 = coverpoint<int> (this, &cov_xxx1);
   coverpoint<int> cvp2 = coverpoint<int> (this, &cov_xx1x);

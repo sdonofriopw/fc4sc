@@ -53,6 +53,7 @@ public:
   }
   wildcard_cov(std::string wildcard_in) {
     wildcard_name = wildcard_in;
+    wildcard_in.erase(std::remove(wildcard_in.begin(), wildcard_in.end(), '_'), wildcard_in.end());
     mask_int = calc_mask(wildcard_in);
     wildcard_int = calc_wildcard(wildcard_in);
     printf("wildcard_int for %s is %x mask is 0x%x\n", get_name().c_str(), wildcard_int, mask_int); 
