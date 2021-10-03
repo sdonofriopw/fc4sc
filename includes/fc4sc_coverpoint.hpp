@@ -44,7 +44,7 @@
 
 
 class wildcard_cov {
-private:
+public:
   std::string wildcard_name;
   int unsigned mask_int;
   int unsigned wildcard_int;
@@ -142,7 +142,9 @@ private:
   friend class bin_array<T>;
   friend class ignore_bin<T>;
   friend class illegal_bin<T>;
-  wildcard_cov *wildcard=nullptr;
+  wildcard_cov *wildcard_ptr=nullptr;
+  friend class wildcard_cov;
+
   
   bool has_sample_expression = false;
   /*!
@@ -171,6 +173,8 @@ private:
   /*! Ignore bins contained in this coverpoint */
   std::vector<ignore_bin<T>> ignore_bins;
 
+  std::vector<wildcard_cov>  wildcard_covs;
+  
   /*! Sampling switch */
   bool collect = true;
 
@@ -194,11 +198,15 @@ private:
 #ifdef FC4SC_DISABLE_SAMPLING
     return;
 #endif
-    if (wildcard != nullptr) {
-      bins[0].sample(wildcard->sample(cvp_val));
-    }
 
     if (!collect) return;
+
+    /*
+    if (wildcard_ptr != nullptr) {
+      bins[0].sample(wildcard_ptr->sample(cvp_val));
+    } // STEVE FIXME - need to debug to see if this effects code below!
+    */
+    
     this->last_sample_success = false;
 
     // 1) Search if the value is in the ignore bins
@@ -218,10 +226,21 @@ private:
     }
     // Sample regular bins
     for (size_t i = 0; i < bins.size(); ++i) {
-      if (bins[i].sample(cvp_val)) {
-        this->last_bin_index_hit = i;
-        this->last_sample_success = true;
-        if (this->stop_sample_on_first_bin_hit) return;
+      if (bins[i].is_wildcard) {
+        int loc_cvp_val = cvp_val;        
+        loc_cvp_val = loc_cvp_val & bins[i].wildcard_mask;
+        if (bins[i].sample(loc_cvp_val)) {
+          this->last_bin_index_hit = i;
+          this->last_sample_success = true;
+          if (this->stop_sample_on_first_bin_hit) return;
+        }
+      }
+      else {
+        if (bins[i].sample(cvp_val)) {
+          this->last_bin_index_hit = i;
+          this->last_sample_success = true;
+          if (this->stop_sample_on_first_bin_hit) return;
+        }
       }
     }
   
@@ -280,6 +299,25 @@ private:
   }
 
   /*!
+   *  \brief Constructor that registers a new wildcard bin
+   */
+public:
+  template <typename... Args>
+  coverpoint(wildcard_cov n, Args... args) : coverpoint(args...)
+  {
+    bin<int> wildcard_bin;
+        
+    wildcard_covs.push_back(n);
+    wildcard_ptr = &n;
+    wildcard_bin = bin<int>(wildcard_ptr->get_name(), wildcard_ptr->get_coverage_bin());
+    wildcard_bin.is_wildcard = true;
+    wildcard_bin.wildcard_mask = wildcard_ptr->mask_int;
+    bins.push_back(wildcard_bin);
+    std::reverse(bins.begin(), bins.end());    
+
+  }
+  
+  /*!
    *  \brief Constructor that takes the parent covergroup.
    */
   template <typename... Args>
@@ -301,6 +339,9 @@ public:
      * the bins. This is a needed assumption which makes the COVERPOINT macro
      * syntax work!
      */
+
+    this->wildcard_covs = std::move(rh.wildcard_covs);
+
     this->bins = std::move(rh.bins);
     this->ignore_bins = std::move(rh.ignore_bins);
     this->illegal_bins = std::move(rh.illegal_bins);
@@ -323,8 +364,10 @@ public:
   coverpoint(cvg_base *parent_cvg, wildcard_cov *wildcard_in) {
     bin<int> wildcard_bin;
     static_assert(forbid_type<cvg_base *, wildcard_cov *>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer and wildcard pointer!");
-    wildcard = wildcard_in;
-    wildcard_bin = bin<int>(wildcard->get_name(), wildcard->get_coverage_bin());
+    wildcard_ptr = wildcard_in;
+    wildcard_bin = bin<int>(wildcard_ptr->get_name(), wildcard_ptr->get_coverage_bin());
+    wildcard_bin.is_wildcard = true;
+    wildcard_bin.wildcard_mask = wildcard_ptr->mask_int;    
     bins.push_back(wildcard_bin);
 
     // Because the way that delegated constructors work, the coverpoint arguments
@@ -357,6 +400,7 @@ public:
     this->sample_point = static_cast<T *>(std::get<0>(strings));
     this->name = std::get<1>(strings);
     this->sample_expression_str = std::get<2>(strings);
+    printf("STEVE cvp %s registered\n", this->name.c_str());
   }
 
   /*!

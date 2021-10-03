@@ -72,6 +72,13 @@ private:
   friend binsof<T>;
   friend coverpoint<T>;
 
+public:
+  /* is this a widcard bin */
+   bool is_wildcard;
+   int wildcard_mask;
+private:
+  
+  
   // These constructors are private, making the only public constructor be
   // the one which receives a name as the first argument. This forces the user
   // to give a name for each instantiated bin.
@@ -103,7 +110,7 @@ protected:
   /*! Default Constructor */
   bin() = default;
 
-  // the type of UCIS bin (default/ignore/illegal)
+  // the type of UCIS bin (default/user/ignore/illegal)
   std::string ucis_bin_type;
 
   uint64_t hits = 0;
@@ -131,6 +138,7 @@ public:
     static_assert(forbid_type<std::string, Args...>::value, "Bin constructor accepts only 1 name argument!");
     this->name = bin_name;
     this->ucis_bin_type = "user";
+    this->is_wildcard= false;
   }
 
   /*!
@@ -398,6 +406,7 @@ public:
   {
     this->name = name;
     this->intervals = std::move(intvs);
+    this->is_wildcard= false;
   }
 
   /*!
@@ -408,6 +417,7 @@ public:
     count(intvs.size()), sparse(true)
   {
     this->name = name;
+    this->is_wildcard= false;    
     this->intervals.clear();
     this->intervals.reserve(this->count);
     // transform each value in the input vector to an interval

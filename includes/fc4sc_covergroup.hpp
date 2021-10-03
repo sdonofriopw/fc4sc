@@ -75,6 +75,8 @@ protected:
     return cvp_structure;
   }
 
+
+
   std::unordered_map<cvp_base *, cvp_metadata_t> cvp_strings;
 
    /*!
