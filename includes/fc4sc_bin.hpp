@@ -41,6 +41,35 @@
 
 #include "fc4sc_base.hpp"
 
+// FIXME NOTE: This class is used as a workaround because the
+// cover point class's bins array does not handle
+// polymorhisim within the bin class's sample method.
+// The wildcard_bin is assigned to the coverage
+// point's add_to_cvp API. It appears that a
+// deep copy of the bin_wrapper occurs
+// resulting in a bin. It is best to
+// replace the sample code using the
+// strategy pattern. I also had
+// trouble with the template T
+// when specialized to double/float
+// so I choose to hard code a uint64_t
+
+class wildcard_cov {
+public:
+  uint64_t mask_int;
+
+public:  
+  wildcard_cov() {
+  }
+  wildcard_cov(uint64_t mask_in) {
+    mask_int= mask_in;
+  }
+  
+  uint64_t sample(uint64_t data_in) {
+    return(mask_int & data_in);
+  }
+};
+
 namespace fc4sc
 {
 // forward declarations
@@ -72,11 +101,6 @@ private:
   friend binsof<T>;
   friend coverpoint<T>;
 
-public:
-  /* is this a widcard bin */
-   bool is_wildcard;
-   int wildcard_mask;
-private:
   
   
   // These constructors are private, making the only public constructor be
@@ -114,7 +138,8 @@ protected:
   std::string ucis_bin_type;
 
   uint64_t hits = 0;
-
+  
+  
   /*! Storage for the values. All are converted to intervals */
   std::vector<interval_t<T>> intervals;
 
@@ -122,6 +147,9 @@ protected:
   std::string name;
 
 public:
+  /* is this a widcard bin */
+  wildcard_cov* wildcard_cv = nullptr;
+  
   /* Virtual function used to register this bin inside a coverpoint */
   virtual void add_to_cvp(coverpoint<T> &cvp) const
   {
@@ -138,7 +166,6 @@ public:
     static_assert(forbid_type<std::string, Args...>::value, "Bin constructor accepts only 1 name argument!");
     this->name = bin_name;
     this->ucis_bin_type = "user";
-    this->is_wildcard= false;
   }
 
   /*!
@@ -179,16 +206,19 @@ public:
    * \brief Samples the given value and increments hit counts
    * \param val Current sampled value
    */
-  uint64_t sample(const T &val)
+  virtual uint64_t sample(const T &val)
   {
+    T loc_val = val;
+    if (this->wildcard_cv != nullptr) {
+      loc_val = this->wildcard_cv->sample(loc_val);
+    }
     // Just search for the value in the intervals we have
     for (auto i : intervals)
-      if (val >= i.first && val <= i.second)
+      if (loc_val >= i.first && loc_val <= i.second)
       {
         this->hits++;
         return 1;
       }
-
     return 0;
   }
 
@@ -285,7 +315,7 @@ public:
    *
    * Samples the inner bin instance, but throws an error if the value is found
    */
-  uint64_t sample(const T &val)
+  virtual uint64_t sample(const T &val)
   {
     for (size_t i = 0; i < this->intervals.size(); ++i)
       if (val >= this->intervals[i].first && val <= this->intervals[i].second) {
@@ -323,6 +353,71 @@ public:
   }
 
   virtual ~ignore_bin() = default;
+};
+
+template <class T> 
+class wildcard_bin final : public bin<T>
+{
+protected:
+  uint64_t wildcard_bin_val;
+  uint64_t wildcard_mask;
+  
+  /* Virtual function used to register this bin inside a coverpoint */
+  virtual void add_to_cvp(coverpoint<T> &cvp) const override
+  {
+    cvp.bins.push_back(*this);
+  }
+
+  wildcard_bin() = delete;
+  
+public:
+  /*!
+   *  \brief Forward to parent constructor
+   */
+  template <typename... Args>
+  explicit wildcard_bin(std::string wildcard_in,Args... args)  : bin<T>::bin(args...) {
+    static_assert(std::is_integral<T>::value, "Type must be integral!");          
+    this->ucis_bin_type = "user";
+    this->name  = wildcard_in;
+    wildcard_in.erase(std::remove(wildcard_in.begin(), wildcard_in.end(), '_'), wildcard_in.end());
+    this->wildcard_mask = calc_mask(wildcard_in);
+    wildcard_bin_val = calc_wildcard(wildcard_in);
+    this->intervals.push_back(interval(wildcard_bin_val, wildcard_bin_val));
+    this->wildcard_cv = new wildcard_cov(this->wildcard_mask);
+  }
+
+  virtual ~wildcard_bin() = default;
+  
+  void wildcard_sample(T data_in, T& data_out) {
+    data_out =  this->wildcard_mask & data_in;
+  }
+  
+  int unsigned calc_wildcard(std::string wildcard_in) {
+    std::string wildcard;
+    wildcard.resize(wildcard_in.length());
+    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
+      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
+        wildcard[i] = '0';
+      else if (wildcard_in[i] == '1')
+        wildcard[i] = '1';
+      else
+        wildcard[i] = '0';
+    }
+    return(std::stoi(wildcard,nullptr,2));
+  }
+  
+  int unsigned calc_mask(std::string wildcard_in) {
+    std::string mask;    
+    mask.resize(wildcard_in.length());
+    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
+      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
+        mask[i] = '0';
+      else
+        mask[i] = '1';
+    }
+    return(std::stoi(mask,nullptr,2));
+  }
+
 };
 
 
@@ -406,7 +501,6 @@ public:
   {
     this->name = name;
     this->intervals = std::move(intvs);
-    this->is_wildcard= false;
   }
 
   /*!
@@ -417,7 +511,6 @@ public:
     count(intvs.size()), sparse(true)
   {
     this->name = name;
-    this->is_wildcard= false;    
     this->intervals.clear();
     this->intervals.reserve(this->count);
     // transform each value in the input vector to an interval
@@ -458,6 +551,7 @@ public:
   bin_wrapper(bin_array<T>  && r) noexcept : bin_h(new bin_array<T>  (std::move(r))) {}
   bin_wrapper(illegal_bin<T>&& r) noexcept : bin_h(new illegal_bin<T>(std::move(r))) {}
   bin_wrapper(ignore_bin<T> && r) noexcept : bin_h(new ignore_bin<T> (std::move(r))) {}
+  bin_wrapper(wildcard_bin<T> && r) noexcept : bin_h(new wildcard_bin<T> (std::move(r))) {}
 };
 
 } // namespace fc4sc

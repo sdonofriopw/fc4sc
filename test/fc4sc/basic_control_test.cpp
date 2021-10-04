@@ -28,32 +28,15 @@ class cvg_control_test : public covergroup {
 public:
 
   CG_CONS(cvg_control_test) {/*setup_coverage();*/};
-
-  
-
-  int SAMPLE_POINT(sample_point1, cvp1);
-  int SAMPLE_POINT(sample_point2, cvp2);
-  int SAMPLE_POINT(sample_point3, cvp3);
-
-  int SAMPLE_POINT(sample_point4, cvp4);
-  int SAMPLE_POINT(sample_point5, cvp5);
-  int SAMPLE_POINT(sample_point6, cvp6);
-
-  int SAMPLE_POINT(sample_point7, cvp7);
-
-  //int SAMPLE_POINT(sample_point8, cvp8);
-
-  /*
-  int sample_pointa;
-  int sample_pointb;
-  int sample_pointc;
-  int sample_pointd;
-  */
+  int sample_point1;
+  int sample_point2;
+  int sample_point3;
+  int sample_point4;
+  int sample_point5;
+  int sample_point6;
+  int sample_point7;
   int sample_point8;
   
-  //  int SAMPLE_POINT(sample_pointb, cvp_wildcard[1]*);
-  // int SAMPLE_POINT(sample_pointc, cvp_wildcard[2]*);
-  // int SAMPLE_POINT(sample_pointd, cvp_wildcard[3]*);
   
   void sample(const int& x) {
     this->sample_point1 = x;
@@ -67,95 +50,26 @@ public:
 
     this->sample_point7 = x;
     this->sample_point8 = x;
-
-    /*
-    this->sample_pointa = x;
-    this->sample_pointb = x;
-    this->sample_pointc = x;
-    this->sample_pointd = x;
-    */
     
     covergroup::sample();
   }
 
-  wildcard_cov cov_xxx1{"xxx_1__"};  
-  wildcard_cov cov_xx1x{"xx_1_x_"};
-  wildcard_cov cov_x1xx{"_x1xx"};
-
-  wildcard_cov cov_xxx0{"xx_x0"};
-  wildcard_cov cov_xx0x{"xx0x_"};
-  wildcard_cov cov_x0xx{"x0x_x"};
-
-  wildcard_cov cov_1010{"1010_"};
-
-  wildcard_cov cov_0101{"0101"};
-
-  coverpoint<int> cvp1 = coverpoint<int> (this, &cov_xxx1);
-  coverpoint<int> cvp2 = coverpoint<int> (this, &cov_xx1x);
-  coverpoint<int> cvp3 = coverpoint<int> (this, &cov_x1xx);
   
-  coverpoint<int> cvp4 = coverpoint<int> (this, &cov_xxx0);
-  coverpoint<int> cvp5 = coverpoint<int> (this, &cov_xx0x);
-  coverpoint<int> cvp6 = coverpoint<int> (this, &cov_x0xx);
-  
-  coverpoint<int> cvp7 = coverpoint<int> (this, &cov_1010);
-  
-  //  coverpoint<int> cvp8 = coverpoint<int> (this, &cov_0101);
+  COVERPOINT(int, cvp1, sample_point1) { fc4sc::wildcard_bin<int>( "xxx_1__" ) };
+  COVERPOINT(int, cvp2, sample_point2) { fc4sc::wildcard_bin<int>( "xx_1_x_" ) };
+  COVERPOINT(int, cvp3, sample_point3) { fc4sc::wildcard_bin<int>( "_x1xx" ) };
+  COVERPOINT(int, cvp4, sample_point4) { fc4sc::wildcard_bin<int>( "xx_x0" ) };  
+  COVERPOINT(int, cvp5, sample_point5) { fc4sc::wildcard_bin<int>( "xx0x_" ) };    
+  COVERPOINT(int, cvp6, sample_point6) { fc4sc::wildcard_bin<int>( "x0x_x" ) };    
+  COVERPOINT(int, cvp7, sample_point7) { fc4sc::wildcard_bin<int>( "1010_" ) };      
   coverpoint<int> cvp8  = covergroup::cg_register_cvp<int>(&cvp8, "cvp8",
                                                            [this]() -> int { return (sample_point8); },
                                                            "sample_point8",
                                                            [this]() -> bool { return (true); },
                                                            ""
                                                            ) = {
-    wildcard_cov(cov_0101)
-    //&cov_0101
-    //cov_0101
-    //        bin< int >( "low1" , interval(1,6), 7)
-    
+    fc4sc::wildcard_bin<int>( "0101" )
   };
-
-   /*
-     COVERPOINT(int, cvp8, sample_point8) {
-    bin< int >( "low1" , interval(1,6), 7)
-
-};
-   */
-  
-  /*
-  wildcard_cov *cov_wildcard[4];
-  coverpoint<int> *cvp_wildcard[4];
-  coverpoint<int> cvp_0 = coverpoint<int> (this, cov_wildcard[0]);
-  coverpoint<int> cvp_1 = coverpoint<int> (this, cov_wildcard[1]);
-  coverpoint<int> cvp_2 = coverpoint<int> (this, cov_wildcard[2]);
-  coverpoint<int> cvp_3 = coverpoint<int> (this, cov_wildcard[3]);
-  void setup_coverage(){
-
-
-    sample_pointa = static_cast<decltype(sample_pointa)>(covergroup::set_strings(cvp_wildcard[0], &sample_pointa, "cvp_wildcard[0]", "sample_pointa"));
-    sample_pointb = static_cast<decltype(sample_pointb)>(covergroup::set_strings(cvp_wildcard[1], &sample_pointb, "cvp_wildcard[1]", "sample_pointb"));
-    sample_pointc = static_cast<decltype(sample_pointc)>(covergroup::set_strings(cvp_wildcard[2], &sample_pointc, "cvp_wildcard[2]", "sample_pointc"));
-    sample_pointd = static_cast<decltype(sample_pointd)>(covergroup::set_strings(cvp_wildcard[3], &sample_pointd, "cvp_wildcard[3]", "sample_pointd"));
-
-
-    for(int unsigned i=0; i<4; i++ ) {
-      std::string temp = "xxxx";
-      std::vector<char> myVector( temp.begin(), temp.end() );
-      for( int unsigned j = 0; j < temp.size(); j++ ) {
-        if (j == i) {
-          temp[j] = '1';
-        }
-      }
-      printf("string temp is %s\n", temp.c_str());
-      cov_wildcard[i] = new wildcard_cov(temp);
-      cvp_wildcard[i] = new coverpoint<int> (this, cov_wildcard[i]);
-      //coverpoint<int> cvp[i] = coverpoint<int> (this, cov_wildcard[i]);
-      //coverpoint<int> cvp = coverpoint<int> (this, cov_wildcard[1])        
-    }
-
-  }
-  */
-
-  
 };
 
 

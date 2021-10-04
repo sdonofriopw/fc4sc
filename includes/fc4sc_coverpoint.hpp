@@ -43,68 +43,6 @@
 #include "fc4sc_bin.hpp"
 
 
-class wildcard_cov {
-public:
-  std::string wildcard_name;
-  int unsigned mask_int;
-  int unsigned wildcard_int;
-public:  
-  wildcard_cov() {
-  }
-  wildcard_cov(std::string wildcard_in) {
-    wildcard_name = wildcard_in;
-    wildcard_in.erase(std::remove(wildcard_in.begin(), wildcard_in.end(), '_'), wildcard_in.end());
-    mask_int = calc_mask(wildcard_in);
-    wildcard_int = calc_wildcard(wildcard_in);
-    printf("wildcard_int for %s is %x mask is 0x%x\n", get_name().c_str(), wildcard_int, mask_int); 
-  }
-
-  std::string get_name() {
-    return(wildcard_name);
-  }
-
-  int unsigned calc_wildcard(std::string wildcard_in) {
-    std::string wildcard;
-    wildcard.resize(wildcard_in.length());
-    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
-      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
-        wildcard[i] = '0';
-      else if (wildcard_in[i] == '1')
-        wildcard[i] = '1';
-      else
-        wildcard[i] = '0';
-    }
-    return(std::stoi(wildcard,nullptr,2));
-  }
-  
-  int unsigned calc_mask(std::string wildcard_in) {
-    std::string mask;    
-    mask.resize(wildcard_in.length());
-    for (unsigned int i=0; i< wildcard_in.length(); ++i) {
-      if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
-        mask[i] = '0';
-      else
-        mask[i] = '1';
-    }
-    return(std::stoi(mask,nullptr,2));
-  }
-  
-  int unsigned sample(int unsigned data_in) {
-    int unsigned sample_out =  mask_int & data_in;
-    printf("wildcard sample for %s data_in %x wildcard %x mask is 0x%x sample out 0x%x\n",
-           get_name().c_str(),
-           data_in,
-           wildcard_int,
-           mask_int,
-           sample_out); 
-    
-    return(sample_out);
-  }
-  
-  int unsigned get_coverage_bin() {
-    return (wildcard_int);
-  }
-};
 
 namespace fc4sc
 {
@@ -142,9 +80,7 @@ private:
   friend class bin_array<T>;
   friend class ignore_bin<T>;
   friend class illegal_bin<T>;
-  wildcard_cov *wildcard_ptr=nullptr;
-  friend class wildcard_cov;
-
+  friend class wildcard_bin<T>;
   
   bool has_sample_expression = false;
   /*!
@@ -173,8 +109,6 @@ private:
   /*! Ignore bins contained in this coverpoint */
   std::vector<ignore_bin<T>> ignore_bins;
 
-  std::vector<wildcard_cov>  wildcard_covs;
-  
   /*! Sampling switch */
   bool collect = true;
 
@@ -200,12 +134,6 @@ private:
 #endif
 
     if (!collect) return;
-
-    /*
-    if (wildcard_ptr != nullptr) {
-      bins[0].sample(wildcard_ptr->sample(cvp_val));
-    } // STEVE FIXME - need to debug to see if this effects code below!
-    */
     
     this->last_sample_success = false;
 
@@ -224,25 +152,16 @@ private:
         throw e;
       }
     }
+
     // Sample regular bins
     for (size_t i = 0; i < bins.size(); ++i) {
-      if (bins[i].is_wildcard) {
-        int loc_cvp_val = cvp_val;        
-        loc_cvp_val = loc_cvp_val & bins[i].wildcard_mask;
-        if (bins[i].sample(loc_cvp_val)) {
-          this->last_bin_index_hit = i;
-          this->last_sample_success = true;
-          if (this->stop_sample_on_first_bin_hit) return;
-        }
-      }
-      else {
-        if (bins[i].sample(cvp_val)) {
-          this->last_bin_index_hit = i;
-          this->last_sample_success = true;
-          if (this->stop_sample_on_first_bin_hit) return;
-        }
+      if (bins[i].sample(cvp_val)) {
+        this->last_bin_index_hit = i;
+        this->last_sample_success = true;
+        if (this->stop_sample_on_first_bin_hit) return;
       }
     }
+  
   
     if (!this->last_sample_success) { misses++; }
   }
@@ -301,20 +220,14 @@ private:
   /*!
    *  \brief Constructor that registers a new wildcard bin
    */
-public:
   template <typename... Args>
-  coverpoint(wildcard_cov n, Args... args) : coverpoint(args...)
+  coverpoint(wildcard_bin<T> n, Args... args) : coverpoint(args...)
   {
-    bin<int> wildcard_bin;
-        
-    wildcard_covs.push_back(n);
-    wildcard_ptr = &n;
-    wildcard_bin = bin<int>(wildcard_ptr->get_name(), wildcard_ptr->get_coverage_bin());
-    wildcard_bin.is_wildcard = true;
-    wildcard_bin.wildcard_mask = wildcard_ptr->mask_int;
-    bins.push_back(wildcard_bin);
-    std::reverse(bins.begin(), bins.end());    
-
+    if (!n.is_empty())
+    {
+      std::reverse(n.intervals.begin(), n.intervals.end());
+      bins.push_back(n);
+    }
   }
   
   /*!
@@ -340,8 +253,6 @@ public:
      * syntax work!
      */
 
-    this->wildcard_covs = std::move(rh.wildcard_covs);
-
     this->bins = std::move(rh.bins);
     this->ignore_bins = std::move(rh.ignore_bins);
     this->illegal_bins = std::move(rh.illegal_bins);
@@ -359,31 +270,6 @@ public:
       bin_w.get_bin()->add_to_cvp(*this);
     }
   }
-
-  template <typename... Args>
-  coverpoint(cvg_base *parent_cvg, wildcard_cov *wildcard_in) {
-    bin<int> wildcard_bin;
-    static_assert(forbid_type<cvg_base *, wildcard_cov *>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer and wildcard pointer!");
-    wildcard_ptr = wildcard_in;
-    wildcard_bin = bin<int>(wildcard_ptr->get_name(), wildcard_ptr->get_coverage_bin());
-    wildcard_bin.is_wildcard = true;
-    wildcard_bin.wildcard_mask = wildcard_ptr->mask_int;    
-    bins.push_back(wildcard_bin);
-
-    // Because the way that delegated constructors work, the coverpoint arguments
-    // processed in the reverse order, resulting in a reversed vector of bins.
-    std::reverse(bins.begin(), bins.end());
-    parent_cvg->register_cvp(this);
-
-    // set strings here
-    auto strings = parent_cvg->get_strings(this);
-
-    this->sample_point = static_cast<T *>(std::get<0>(strings));
-    this->name = std::get<1>(strings);
-    //    this->sample_expression_str = std::get<3>(strings);
-
-
-  };
   
   
   template <typename... Args>
@@ -400,7 +286,6 @@ public:
     this->sample_point = static_cast<T *>(std::get<0>(strings));
     this->name = std::get<1>(strings);
     this->sample_expression_str = std::get<2>(strings);
-    printf("STEVE cvp %s registered\n", this->name.c_str());
   }
 
   /*!
@@ -450,12 +335,13 @@ public:
   double get_inst_coverage() const 
   {
     if (bins.empty()) // no bins defined
-      return (option.weight == 0) ? 100 : 0;
+        return (option.weight == 0) ? 100 : 0;
 
     double res = 0;
     for (auto &bin : bins)
       res += (bin.get_hitcount() >= option.at_least);
 
+    
     double real = res * 100 / bins.size();
 
     return (real >= this->option.goal) ? 100 : real;
@@ -482,6 +368,7 @@ public:
     for (auto &bin : bins)
       res += (bin.get_hitcount() >= option.at_least);
 
+    
     covered = res;
     double real = res * 100 / total;
     return (real >= this->option.goal) ? 100 : real;
