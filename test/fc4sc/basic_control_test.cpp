@@ -61,7 +61,11 @@ public:
   COVERPOINT(int, cvp4, sample_point4) { fc4sc::wildcard_bin<int>( "xx_x0" ) };  
   COVERPOINT(int, cvp5, sample_point5) { fc4sc::wildcard_bin<int>( "xx0x_" ) };    
   COVERPOINT(int, cvp6, sample_point6) { fc4sc::wildcard_bin<int>( "x0x_x" ) };    
-  COVERPOINT(int, cvp7, sample_point7) { fc4sc::wildcard_bin<int>( "1010_" ) };      
+  COVERPOINT(int, cvp7, sample_point7) {
+    {
+      fc4sc::wildcard_bin<int>( build_1010_string() )
+    }
+  };      
   coverpoint<int> cvp8  = covergroup::cg_register_cvp<int>(&cvp8, "cvp8",
                                                            [this]() -> int { return (sample_point8); },
                                                            "sample_point8",
@@ -70,6 +74,22 @@ public:
                                                            ) = {
     fc4sc::wildcard_bin<int>( "0101" )
   };
+
+  std::string build_1010_string() {
+    std::string str;
+    str.resize(5);
+    for (int i=0;i<5;i++) {
+      if (i == 0)
+        str[i] = '_';
+      else if (i%2)
+        str[i] = '1';
+      else
+        str[i] = '0';
+    }
+    std::cout << "string is "<< str  << '\n';    
+    return(str);
+  };
+
 };
 
 
@@ -160,23 +180,4 @@ TEST(api, control) {
   
   fc4sc::global::coverage_save("basic_control_sample_4_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
   
-  
-  //  EXPECT_EQ(cvg.get_inst_coverage(), 66.6667);
-  /*
-  cvg.cvp1.start();
-   cvg.sample(1);
-  
-  //cvg.sample(0x3);
-  cvg.sample(0x7);
-
-    
-  EXPECT_EQ(cvg.cvp1.get_inst_coverage(), 100);
-  EXPECT_EQ(cvg.cvp2.get_inst_coverage(), 100);  
-
-  cvg.sample(0x7);
-
-    EXPECT_EQ(cvg.get_inst_coverage(), 100);
-
-  fc4sc::global::coverage_save("basic_control_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
-  */
 }
