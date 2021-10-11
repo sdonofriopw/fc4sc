@@ -38,37 +38,8 @@
 #include <vector>
 #include <sstream>
 #include <memory>  // unique_ptr
-
 #include "fc4sc_base.hpp"
-
-// FIXME NOTE: This class is used as a workaround because the
-// cover point class's bins array does not handle
-// polymorhisim within the bin class's sample method.
-// The wildcard_bin is assigned to the coverage
-// point's add_to_cvp API. It appears that a
-// deep copy of the bin_wrapper occurs
-// resulting in a bin. It is best to
-// replace the sample code using the
-// strategy pattern. I also had
-// trouble with the template T
-// when specialized to double/float
-// so I choose to hard code a uint64_t
-
-class wildcard_cov {
-public:
-  uint64_t mask_int;
-
-public:  
-  wildcard_cov() {
-  }
-  wildcard_cov(uint64_t mask_in) {
-    mask_int= mask_in;
-  }
-  
-  uint64_t sample(uint64_t data_in) {
-    return(mask_int & data_in);
-  }
-};
+#include <assert.h>
 
 namespace fc4sc
 {
@@ -90,6 +61,127 @@ template <typename T>
 static std::vector<interval_t<T>> intersection(const bin<T>& lhs, const std::vector<interval_t<T>>& rhs);
 
 /*!
+ * \brief Defines an abstract class for bin sample behavior strategy
+ * \tparam T Type of values in this bin
+ */  
+template <typename T> 
+class sample_strategy {
+ public:
+  sample_strategy(std::string n) : name(n) {
+  }
+  // FIXME virtual ~sample_strategy();
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) = 0;
+
+protected:
+  std::string name;
+
+};
+  
+/*!
+ * \brief Define a concrete class for bin sample strategies
+ * \tparam T Type of values in this bin
+ */
+template <typename T>
+class bin_sample_strategy : public sample_strategy<T> {
+public:
+  bin_sample_strategy(std::string n) : sample_strategy<T>(n) {
+  }
+protected:
+    std::vector<interval_t<T>> intervals;
+public:
+
+  /*!
+   * \brief Samples the given value and increments hit counts
+   * \param val Current sampled value
+   */  
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+    // Just search for the value in the intervals we have
+    for (auto i : intervals)
+      if (val >= i.first && val <= i.second)
+      {
+        hits++;
+        return 1;
+      }
+    return 0;
+  }
+};
+
+/*!
+ * \brief Define a concrete class for wildcard bin sample strategies
+ * \tparam T Type of values in this bin
+ */
+template <typename T>
+class wildcard_bin_sample_strategy : public sample_strategy<T> {
+public:
+  wildcard_bin_sample_strategy(std::string n, T m)  : mask(m), sample_strategy<T>(n) {
+  }
+private:
+  T mask;
+public:
+  /*!
+   * \brief After adjusting fo the don't care mask samples the given value and increments hit counts
+   * \param val Current sampled value
+   */  
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+    T loc_val = loc_val = val & mask;
+    // Just search for the value in the intervals we have
+    for (auto i : intervals)
+      if (loc_val >= i.first && loc_val <= i.second)
+        {
+          hits++;
+          return 1;
+        }
+    return 0;
+  }
+};
+
+/*!
+ * \brief Define a concrete class for ignore bin sample strategies
+ * \tparam T Type of values in this bin
+ */
+template <typename T>
+class ignore_bin_sample_strategy : public sample_strategy<T> {
+public:
+  ignore_bin_sample_strategy(std::string n)  : sample_strategy<T>(n) {
+  }
+
+  /*!
+   * \brief Sample does nothing - no hit or miss 
+   */
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+  }
+};
+
+/*!
+ * \brief Define concrete class for illegal bin sample strategies
+ * \tparam T Type of values in this bin
+ */
+template <typename T>
+class illegal_bin_sample_strategy : public sample_strategy<T> {
+public:
+  illegal_bin_sample_strategy(std::string n)  : sample_strategy<T>(n) {
+  }
+
+  /*!
+   * \brief Same as bin::sample(const T& val)
+   *
+   * Samples the inner bin instance, but throws an error if the value is found
+   */
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+    for (size_t i = 0; i < intervals.size(); ++i)
+      if (val >= intervals[i].first && val <= intervals[i].second) {
+        // construct exception to be thrown
+        std::stringstream ss; ss << val;
+        illegal_bin_sample_exception e;
+        e.update_bin_info(this->name, ss.str());
+        hits++;
+        throw e;
+      }
+  }
+};
+
+  
+/*!
  * \brief Defines a class for default bins
  * \tparam T Type of values in this bin
  */
@@ -100,7 +192,6 @@ private:
   static_assert(std::is_arithmetic<T>::value, "Type must be numeric!");
   friend binsof<T>;
   friend coverpoint<T>;
-
   
   
   // These constructors are private, making the only public constructor be
@@ -134,9 +225,13 @@ protected:
   /*! Default Constructor */
   bin() = default;
 
-  // the type of UCIS bin (default/user/ignore/illegal)
+  // This is the context switch for sample behavior
+  sample_strategy<T>* sample_context  = nullptr;
+  
+  // The type of UCIS bin (default/user/ignore/illegal)
   std::string ucis_bin_type;
 
+  // The all important hit count for a bin
   uint64_t hits = 0;
   
   
@@ -147,13 +242,12 @@ protected:
   std::string name;
 
 public:
-  /* is this a widcard bin */
-  wildcard_cov* wildcard_cv = nullptr;
-  
+
   /* Virtual function used to register this bin inside a coverpoint */
   virtual void add_to_cvp(coverpoint<T> &cvp) const
   {
     cvp.bins.push_back(*this);
+
   }
 
   /*!
@@ -166,6 +260,8 @@ public:
     static_assert(forbid_type<std::string, Args...>::value, "Bin constructor accepts only 1 name argument!");
     this->name = bin_name;
     this->ucis_bin_type = "user";
+    this->sample_context = new bin_sample_strategy<T>("");        
+        
   }
 
   /*!
@@ -187,39 +283,38 @@ public:
     return name;
   }
   
+  /*!
+   *  \brief Return the bin hit number
+   */
   uint64_t get_hitcount() const
   {
     return hits;
   }
 
+  /*!
+   *  \brief Return the bin intervals
+   */
   std::vector<interval_t<T>> get_bin_intervals() const
   {
     return intervals;
   }
 
+  /*!
+   *  \brief Return the bin type
+   */
   std::string get_bin_type() const
   {
     return ucis_bin_type;
   }
   
   /*!
-   * \brief Samples the given value and increments hit counts
-   * \param val Current sampled value
+   * \brief Samples the given value based on the
+   * \ context for this object
    */
   virtual uint64_t sample(const T &val)
   {
-    T loc_val = val;
-    if (this->wildcard_cv != nullptr) {
-      loc_val = this->wildcard_cv->sample(loc_val);
-    }
-    // Just search for the value in the intervals we have
-    for (auto i : intervals)
-      if (loc_val >= i.first && loc_val <= i.second)
-      {
-        this->hits++;
-        return 1;
-      }
-    return 0;
+    assert(sample_context != nullptr);
+    return this->sample_context->sample(val,intervals,this->hits); 
   }
 
   /*!
@@ -306,29 +401,11 @@ public:
   template <typename... Args>
   explicit illegal_bin(Args... args) : bin<T>::bin(args...) {
     this->ucis_bin_type = "illegal";
+    this->sample_context = new illegal_bin_sample_strategy<T>("");        
   }
 
   virtual ~illegal_bin() = default;
 
-  /*!
-   * \brief Same as bin::sample(const T& val)
-   *
-   * Samples the inner bin instance, but throws an error if the value is found
-   */
-  virtual uint64_t sample(const T &val)
-  {
-    for (size_t i = 0; i < this->intervals.size(); ++i)
-      if (val >= this->intervals[i].first && val <= this->intervals[i].second) {
-        // construct exception to be thrown
-        std::stringstream ss; ss << val;
-        illegal_bin_sample_exception e;
-        e.update_bin_info(this->name, ss.str());
-        this->hits++;
-        throw e;
-      }
-
-    return 0;
-  }
 };
 
 template <class T>
@@ -350,17 +427,25 @@ public:
   template <typename... Args>
   explicit ignore_bin(Args... args) : bin<T>::bin(args...) {
     this->ucis_bin_type = "ignore";
+    this->sample_context = new ignore_bin_sample_strategy<T>("");    
   }
 
   virtual ~ignore_bin() = default;
 };
 
+/*!
+ * \brief Bins that mask don't care care bits. The input argument is a string
+ * of binary values with may include don't care characters X or ?. The input 
+ * format resembles the functional coverage wildcard format in the IEEE 1800.
+ * FIXME The current implemention is limited to binary bits. 
+ */
+
 template <class T> 
 class wildcard_bin final : public bin<T>
 {
 protected:
-  uint64_t wildcard_bin_val;
-  uint64_t wildcard_mask;
+  uint64_t bin_val;
+  uint64_t dont_care_mask;
   
   /* Virtual function used to register this bin inside a coverpoint */
   virtual void add_to_cvp(coverpoint<T> &cvp) const override
@@ -380,33 +465,33 @@ public:
     this->ucis_bin_type = "user";
     this->name  = wildcard_in;
     wildcard_in.erase(std::remove(wildcard_in.begin(), wildcard_in.end(), '_'), wildcard_in.end());
-    this->wildcard_mask = calc_mask(wildcard_in);
-    wildcard_bin_val = calc_wildcard(wildcard_in);
-    this->intervals.push_back(interval(wildcard_bin_val, wildcard_bin_val));
-    this->wildcard_cv = new wildcard_cov(this->wildcard_mask);
+    this->dont_care_mask = calc_dont_care_mask(wildcard_in);
+    bin_val = calc_bin_val(wildcard_in);
+    this->intervals.push_back(interval(bin_val, bin_val));
+    this->sample_context = new wildcard_bin_sample_strategy<T>(this->name, this->dont_care_mask);
   }
 
   virtual ~wildcard_bin() = default;
   
   void wildcard_sample(T data_in, T& data_out) {
-    data_out =  this->wildcard_mask & data_in;
+    data_out =  this->dont_care_mask & data_in;
   }
   
-  int unsigned calc_wildcard(std::string wildcard_in) {
+  int unsigned calc_bin_val(std::string wildcard_in) {
     std::string wildcard;
     wildcard.resize(wildcard_in.length());
     for (unsigned int i=0; i< wildcard_in.length(); ++i) {
       if (wildcard_in[i] == 'x' || wildcard_in[i] == '?')
-        wildcard[i] = '0';
+        wildcard[i] = '0'; // normalize dont-care to zero 
       else if (wildcard_in[i] == '1')
         wildcard[i] = '1';
       else
         wildcard[i] = '0';
     }
-    return(std::stoi(wildcard,nullptr,2));
+    return(std::stol(wildcard,nullptr,2));
   }
   
-  int unsigned calc_mask(std::string wildcard_in) {
+  int unsigned calc_dont_care_mask(std::string wildcard_in) {
     std::string mask;    
     mask.resize(wildcard_in.length());
     for (unsigned int i=0; i< wildcard_in.length(); ++i) {
@@ -415,11 +500,13 @@ public:
       else
         mask[i] = '1';
     }
-    return(std::stoi(mask,nullptr,2));
+    return(std::stol(mask,nullptr,2));
   }
-
 };
 
+/*!
+ * \brief Heler class for creating an array of bins
+ */
 
 template <class T>
 class bin_array final : public bin<T>

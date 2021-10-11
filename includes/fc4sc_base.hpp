@@ -141,6 +141,12 @@ static interval_t<T> interval(T t1, T t2) {
 }
 
 /*!
+ * \brief Defines a class for bin sample strategy
+ * \tparam T Type of values in this bin
+ */
+template <typename T> class sample_strategy;
+  
+/*!
  *  \class bin_base fc_base.hpp
  *  \brief Base class for bins
  *
@@ -149,6 +155,8 @@ static interval_t<T> interval(T t1, T t2) {
 class bin_base
 {
 public:
+
+
   /*!
    * \brief Function to print a bin to UCIS XML
    * \param stream Where to print
