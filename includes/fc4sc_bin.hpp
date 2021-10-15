@@ -113,7 +113,8 @@ public:
 template <typename T>
 class wildcard_bin_sample_strategy : public sample_strategy<T> {
 public:
-  wildcard_bin_sample_strategy(std::string n, T m)  : mask(m), sample_strategy<T>(n) {
+  wildcard_bin_sample_strategy(std::string n, T m)  : sample_strategy<T>(n) {
+    mask=m;
   }
 private:
   T mask;
@@ -123,7 +124,7 @@ public:
    * \param val Current sampled value
    */  
   virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
-    T loc_val = loc_val = val & mask;
+    T loc_val = val & mask;
     // Just search for the value in the intervals we have
     for (auto i : intervals)
       if (loc_val >= i.first && loc_val <= i.second)
@@ -149,6 +150,7 @@ public:
    * \brief Sample does nothing - no hit or miss 
    */
   virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+    return 0;
   }
 };
 
