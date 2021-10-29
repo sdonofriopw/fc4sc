@@ -166,23 +166,21 @@ public:
       }
 
       // parse through all coverage point bins to find the names
-      for (int j=0;j < cvp->get_bins().size();j++) {
+      for (uint64_t j=0;j < cvp->get_bins().size();j++) {
         bin_names.resize(i+1);
         bin_names[i].push_back(cvp->get_bin_name(j));
-        printf("STEVE HERE AT CONSTRUCTOR bin_name i=%d j=%d\n",i,j);
       }
       i++;
     }
 
     
-    for (int i = 0; i < my_bins.size(); i++) {
+    for (uint64_t i = 0; i < my_bins.size(); i++) {
       std::vector <size_t> new_bin;
-      for (int j = 0; j < my_bins[i].size(); j++) {
+      for (uint64_t j = 0; j < my_bins[i].size(); j++) {
         new_bin.push_back(my_bins[i][j]);
       }
       bins[new_bin] = 0;
     }
-    printf("STEVE HERE AT end OF CONSTRUCTOR\n");
   };
   
 
@@ -190,7 +188,7 @@ public:
     std::vector<std::vector<size_t>> new_bins;
     new_bins.resize(size);
     
-    for(int i = 0;i < size;i++) {
+    for(uint64_t i = 0;i < size;i++) {
       new_bins[i].push_back(i);
     }
     return new_bins;
@@ -200,8 +198,8 @@ public:
     std::vector<std::vector<size_t>> new_bins;
     new_bins.resize(org_bins.size()*size);
 
-    for (int k = 0; k < org_bins.size()*size; k++) {
-      for(int j = 0; j < org_bins[k/size].size(); j++) {
+    for (uint64_t k = 0; k < org_bins.size()*size; k++) {
+      for(uint64_t j = 0; j < org_bins[k/size].size(); j++) {
         new_bins[k].push_back(org_bins[k/size][j]);
       }
       new_bins[k].push_back(k%size);
@@ -263,7 +261,6 @@ public:
         covered++;
     }
 
-    printf("covered=%d / total=%d result=%f\n", covered, total, (double)covered/(double)total); 
     double real = 100.0 * covered / total;
     return (real >= this->option.goal) ? 100 : real;
   }
@@ -288,7 +285,6 @@ public:
     if (total == 0)
       return (this->option.weight == 0) ? 100 : 0;
 
-    printf("covered=%d / total=%d = %f\n", covered, total, covered/total); 
     return covered / total;
   }
 
@@ -324,7 +320,7 @@ public:
   std::string build_bin_name(std::vector<size_t> data_in)
   {
     std::string temp_name="";
-    for(int i = 0;i<data_in.size();i++) {
+    for(uint64_t i = 0;i<data_in.size();i++) {
       temp_name = temp_name + " ";
       temp_name = temp_name + bin_names[i][data_in[i]];
     }
@@ -360,7 +356,7 @@ public:
       std::string temp_name="";
       stream << "<crossBin \n";
       std::vector<size_t> temp = bin.first;
-      for(int q = 0;q<temp.size();q++) {
+      for(uint64_t q = 0;q<temp.size();q++) {
         temp_name = temp_name + " ";
         temp_name = temp_name + bin_names[q][temp[q]];
       }

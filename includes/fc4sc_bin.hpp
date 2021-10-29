@@ -69,7 +69,6 @@ class sample_strategy {
  public:
   sample_strategy(std::string n) : name(n) {
   }
-  // FIXME virtual ~sample_strategy();
   virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) = 0;
 
 protected:
@@ -228,7 +227,7 @@ protected:
   bin() = default;
 
   // This is the context switch for sample behavior
-  sample_strategy<T>* sample_context  = nullptr;
+  std::shared_ptr<sample_strategy<T>> sample_context;
   
   // The type of UCIS bin (default/user/ignore/illegal)
   std::string ucis_bin_type;
@@ -262,7 +261,7 @@ public:
     static_assert(forbid_type<std::string, Args...>::value, "Bin constructor accepts only 1 name argument!");
     this->name = bin_name;
     this->ucis_bin_type = "user";
-    this->sample_context = new bin_sample_strategy<T>("");        
+    this->sample_context = std::make_shared<bin_sample_strategy<T>>("");        
         
   }
 
@@ -315,7 +314,7 @@ public:
    */
   virtual uint64_t sample(const T &val)
   {
-    assert(sample_context != nullptr);
+    assert(sample_context);
     return this->sample_context->sample(val,intervals,this->hits); 
   }
 
@@ -403,7 +402,7 @@ public:
   template <typename... Args>
   explicit illegal_bin(Args... args) : bin<T>::bin(args...) {
     this->ucis_bin_type = "illegal";
-    this->sample_context = new illegal_bin_sample_strategy<T>("");        
+    this->sample_context = std::make_shared<illegal_bin_sample_strategy<T>>("");
   }
 
   virtual ~illegal_bin() = default;
@@ -429,7 +428,7 @@ public:
   template <typename... Args>
   explicit ignore_bin(Args... args) : bin<T>::bin(args...) {
     this->ucis_bin_type = "ignore";
-    this->sample_context = new ignore_bin_sample_strategy<T>("");    
+    this->sample_context = std::make_shared<ignore_bin_sample_strategy<T>>("");
   }
 
   virtual ~ignore_bin() = default;
@@ -470,7 +469,7 @@ public:
     this->dont_care_mask = calc_dont_care_mask(wildcard_in);
     bin_val = calc_bin_val(wildcard_in);
     this->intervals.push_back(interval(bin_val, bin_val));
-    this->sample_context = new wildcard_bin_sample_strategy<T>(this->name, this->dont_care_mask);
+    this->sample_context = std::make_shared<wildcard_bin_sample_strategy<T>>(this->name, this->dont_care_mask);
   }
 
   virtual ~wildcard_bin() = default;
@@ -543,7 +542,7 @@ protected:
       // TODO: find a way to work around this issue
       // NOTE: A potential fix would be implementing a template specialization
       // of the bin_array class for floating point types (float/double).
-      if (this->count > interval_length) {
+      if (this->count > (uint64_t)interval_length) {
         // This bin array interval cannot be split into pieces. Add a single
         // bin containing the whole interval to the coverpoint. We can simply
         // use this object since it already matches the bin that we need!
