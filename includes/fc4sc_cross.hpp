@@ -30,8 +30,6 @@
  for bins, coverpoints and covergroups.
  */
 
-// STEVE FIXME - cosmetic cleanup needed
-
 #ifndef FC4SC_CROSS_HPP
 #define FC4SC_CROSS_HPP
 
@@ -130,13 +128,13 @@ class cross : public cvp_base
 public:
   /*! Hit cross bins storage */
   std::map<std::vector<size_t>, uint64_t> bins;
-
-  /*! covergae point bin names */  
-  std::vector<std::vector<std::string>> bin_names;
   
   /*! Crossed coverpoints storage */
   std::vector<cvp_base *> cvps_vec;
 
+  /*! Each cross coverage point's bin names */  
+  std::vector<std::vector<std::string>> cvp_bin_names;
+  
   /*!
    *  \brief Main constructor
    *  \param n Parent covergroup
@@ -167,13 +165,13 @@ public:
 
       // parse through all coverage point bins to find the names
       for (uint64_t j=0;j < cvp->get_bins().size();j++) {
-        bin_names.resize(i+1);
-        bin_names[i].push_back(cvp->get_bin_name(j));
+        cvp_bin_names.resize(i+1);
+        cvp_bin_names[i].push_back(cvp->get_bin_name(j));
       }
       i++;
     }
 
-    
+    // setup initial cross bins hit count of 0
     for (uint64_t i = 0; i < my_bins.size(); i++) {
       std::vector <size_t> new_bin;
       for (uint64_t j = 0; j < my_bins[i].size(); j++) {
@@ -239,6 +237,15 @@ public:
         return;
       }
     }
+    // need to reverse to match cvps_vec in constructor
+    std::reverse(hit_bins.begin(), hit_bins.end());
+    // make sure hit index is not out of range    
+    for (uint64_t i = 0; i < hit_bins.size(); i++) { 
+      assert(hit_bins[i] <= (cvp_bin_names[i].size()-1)); 
+    }
+    // make sure this element is included in the bins map
+    assert(bins.find(hit_bins) != bins.end());
+    // increment this element's cross bin counter
     bins[hit_bins]++;
   }
 
@@ -312,20 +319,6 @@ public:
   {
     collect = false;
   };
-
-
-  /*!
-   * \brief Builds up the pretty bin name from the cross matrix
-   */
-  std::string build_bin_name(std::vector<size_t> data_in)
-  {
-    std::string temp_name="";
-    for(uint64_t i = 0;i<data_in.size();i++) {
-      temp_name = temp_name + " ";
-      temp_name = temp_name + bin_names[i][data_in[i]];
-    }
-    return temp_name;
-  }
   
   /*!
    * \brief print instance in UCIS XML format
@@ -343,6 +336,7 @@ public:
 
     stream << option << "\n";
 
+    
     for (auto &cvp : cvps_vec)
     {
       stream << "<crossExpr>" << cvp->name << "</crossExpr> \n";
@@ -350,7 +344,8 @@ public:
     uint64_t i = 0; // non-terminal counter
     uint64_t j = 0; // terminal counter
     uint64_t k = 0; // coverpoint index counter
-    uint64_t terminal_size = terminal_size_vec[k];
+    uint64_t terminal_size = terminal_size_vec[terminal_size_vec.size()-1];
+
     for (auto& bin : bins)
     {
       std::string temp_name="";
@@ -358,7 +353,7 @@ public:
       std::vector<size_t> temp = bin.first;
       for(uint64_t q = 0;q<temp.size();q++) {
         temp_name = temp_name + " ";
-        temp_name = temp_name + bin_names[q][temp[q]];
+        temp_name = temp_name + cvp_bin_names[q][temp[q]];
       }
       stream << "name=\""
              << temp_name
@@ -368,7 +363,6 @@ public:
              << "user"
              << "\" \n";
       stream << "> \n";
-
 
       stream << "<userCrossBinIndex>" << " \n";
       stream << "<crossNodeNonterminalRange low=\"" << i << "\" high=\"" << i << "\" >\n";
@@ -384,18 +378,12 @@ public:
 
       stream << "</crossBin> \n";
 
-      if (i == non_terminal_size-1) {
-        i = 0;
-        if (j == terminal_size-1) {
-          j = 0;
-          k++;
-          terminal_size = terminal_size_vec[k];          
-        }
-        else
-          j++;
+      if (j == terminal_size-1) {
+        j = 0;
+        i++;
       }
       else
-        i++;
+        j++;
     }
     stream << "</cross>\n";
 

@@ -8,9 +8,12 @@ public:
     cvp2.option.weight = 0;
   };
 
-  int SAMPLE_POINT(sample_point_1, cvp1);
-  int SAMPLE_POINT(sample_point_2, cvp2);
-  int SAMPLE_POINT(sample_point_3, cvp3);
+  int sample_point_1;
+  int sample_point_2;
+  int sample_point_3;
+  //  int SAMPLE_POINT(sample_point_1, cvp1);
+  // int SAMPLE_POINT(sample_point_2, cvp2);
+  // int SAMPLE_POINT(sample_point_3, cvp3);
 
   void sample(const int& x, const int& y,const int& z) {
     this->sample_point_1 = x;
@@ -18,22 +21,43 @@ public:
     this->sample_point_3 = z;
     covergroup::sample();
   }
-  coverpoint<int> cvp1 = coverpoint<int> (this, "cvp1",
-                                          bin<int>("cvp1_one", 1),
-                                          bin<int>("cvp1_two", 2),
-                                          bin<int>("cvp1_three", 3)
-                                          );
-  coverpoint<int> cvp2 = coverpoint<int> (this, "cvp2",
-                                          bin<int>("cvp2_one", 1),
-                                          bin<int>("cvp2_two", 2),
-                                          bin<int>("cvp2_three", 3)
-                                          );
+  COVERPOINT(int, cvp1, sample_point_1 ) {
+    bin<int>("cvp1_one", 1),
+    bin<int>("cvp1_two", 2)
+   };
 
-  coverpoint<int> cvp3 = coverpoint<int> (this, "cvp3",
+  COVERPOINT(int, cvp2, sample_point_2 ) {
+    bin<int>("cvp2_one", 1),
+    bin<int>("cvp2_two", 2),
+    bin<int>("cvp2_three", 3),
+    bin<int>("cvp2_four", 4),
+    ignore_bin<int>("cvp2_five", 5)
+   };  
+  
+  COVERPOINT(int, cvp3, sample_point_3 ) {
+    bin<int>("cvp3_one", 1),
+    bin<int>("cvp3_two", 2),
+    bin<int>("cvp3_three", 3),
+    bin<int>("cvp3_four", 4),
+    bin<int>("cvp3_five", 5),
+    bin<int>("cvp3_six", 6),
+    bin<int>("cvp3_seven", 7),
+    bin<int>("cvp3_eigth", 8),
+    bin<int>("cvp3_nine", 9),
+    bin<int>("cvp3_ten", 10),
+    bin<int>("cvp3_eleven", 11),
+    bin<int>("cvp3_twelve", 12),
+    bin<int>("cvp3_thirteen",13),
+    bin<int>("cvp3_fourteen", 14),
+    bin<int>("cvp3_fifthteen", 15)
+      
+  };  
+  
+  /*coverpoint<int> cvp3 = coverpoint<int> (this, "cvp3",
                                           bin<int>("cvp3_one", 1),
                                           bin<int>("cvp3_two", 2)
                                           );
-
+  */
   cross<int,int,int> cross1 = cross<int,int, int> (this, "cross1", &cvp1, &cvp2, &cvp3);
 };
 
@@ -41,55 +65,37 @@ TEST(cross_bins_filtering, binsof) {
     basic_cross_bins_filtering_test basic_cg_1;
 
 
-    
+
     // TODO: update testcase to check the functionality of binsof, || and && operators
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 0);
 
-    basic_cg_1.sample(0, 0, 0);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 0);
 
-    basic_cg_1.sample(1, 0, 0);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 0);
+    // sample valid cross
+    basic_cg_1.sample(1, 1, 11);
 
-    basic_cg_1.sample(0, 1, 0);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 0);
+    // should be ~ .83
+    EXPECT_GT(basic_cg_1.cross1.get_inst_coverage(), 0.82);
+    EXPECT_LT(basic_cg_1.cross1.get_inst_coverage(),0.84);
 
-    basic_cg_1.sample(1, 2, 1);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 26.39);
+    // sample that includes an ignore bin - cvp2's cvp2_five bin
+    basic_cg_1.sample(1, 5, 11);
+    EXPECT_GT(basic_cg_1.cross1.get_inst_coverage(), 0.82);
+    EXPECT_LT(basic_cg_1.cross1.get_inst_coverage(),0.84);
 
-    fc4sc::global::coverage_save("basic_cross_bin_filtering_sample_1_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+    // sample that includes an out of range sample value for cvp 2
+    basic_cg_1.sample(1, 1000, 11);
+    EXPECT_GT(basic_cg_1.cross1.get_inst_coverage(), 0.82);
+    EXPECT_LT(basic_cg_1.cross1.get_inst_coverage(),0.84);
     
-    basic_cg_1.sample(1, 2, 2);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 11);
+    fc4sc::global::coverage_save("basic_cross_bin_filtering_1_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
 
-    fc4sc::global::coverage_save("basic_cross_bin_filtering_sample_2_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
-    
-    basic_cg_1.cross1.option.goal = 11;
-    EXPECT_EQ(basic_cg_1.cross1.get_inst_coverage(), 100);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 100);
-    fc4sc::global::coverage_save("basic_cross_bin_filtering_sample_3_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
-
-    
-    basic_cg_1.cross1.option.goal = 100;
-
-    basic_cg_1.sample(2, 2, 2);
-    EXPECT_EQ(basic_cg_1.cross1.get_inst_coverage(), 11.11);
-    fc4sc::global::coverage_save("basic_cross_bin_filtering_sample_4_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
-
-    basic_cg_1.sample(2, 1, 1);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 25);
 
     basic_cg_1.sample(1, 1, 1);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 38);
-
-
+    basic_cg_1.sample(2, 2, 2);
     basic_cg_1.sample(1, 3, 3);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 50);
+    basic_cg_1.cross1.option.goal = 1;
+    EXPECT_EQ(basic_cg_1.cross1.get_inst_coverage(), 100);
 
-    basic_cg_1.sample(2, 3, 2);
-    EXPECT_EQ(basic_cg_1.get_inst_coverage(), 50);
-    
-    fc4sc::global::coverage_save("basic_cross_bin_filtering_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+    fc4sc::global::coverage_save("basic_cross_bin_filtering_2_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
 
 
 }
