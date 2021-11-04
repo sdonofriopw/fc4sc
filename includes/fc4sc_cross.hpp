@@ -343,7 +343,6 @@ public:
     }
     uint64_t i = 0; // non-terminal counter
     uint64_t j = 0; // terminal counter
-    uint64_t k = 0; // coverpoint index counter
     uint64_t terminal_size = terminal_size_vec[terminal_size_vec.size()-1];
 
     for (auto& bin : bins)
