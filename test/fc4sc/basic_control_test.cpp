@@ -36,6 +36,7 @@ public:
   int sample_point6;
   int sample_point7;
   int sample_point8;
+  int sample_point9;
   
   
   void sample(const int& x) {
@@ -50,6 +51,8 @@ public:
 
     this->sample_point7 = x;
     this->sample_point8 = x;
+
+    this->sample_point9 = x;
     
     covergroup::sample();
   }
@@ -75,6 +78,8 @@ public:
     fc4sc::wildcard_bin<int>( "0101" )
   };
 
+  COVERPOINT(int, cvp9, sample_point9) { fc4sc::transition_bin<int>( 0x5, 0xa, 0x3 ) };    
+  
   std::string build_1010_string() {
     std::string str;
     str.resize(5);
@@ -177,7 +182,19 @@ TEST(api, control) {
   EXPECT_EQ(cvg.cvp7.get_inst_coverage(), 100);  
 
   EXPECT_EQ(cvg.cvp8.get_inst_coverage(), 100);  
+
+  EXPECT_EQ(cvg.cvp9.get_inst_coverage(), 0);  
   
   fc4sc::global::coverage_save("basic_control_sample_4_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+
+  cvg.sample(0xa);
+  EXPECT_EQ(cvg.cvp9.get_inst_coverage(), 0);  
+
+  fc4sc::global::coverage_save("basic_control_sample_5_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+
+  cvg.sample(0x3);
+  EXPECT_EQ(cvg.cvp9.get_inst_coverage(), 100);  
+
+  fc4sc::global::coverage_save("basic_control_sample_6_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
   
 }

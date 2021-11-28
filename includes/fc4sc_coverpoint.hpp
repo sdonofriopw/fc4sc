@@ -81,6 +81,7 @@ private:
   friend class ignore_bin<T>;
   friend class illegal_bin<T>;
   friend class wildcard_bin<T>;
+  friend class transition_bin<T>;
   
   bool has_sample_expression = false;
   /*!
@@ -229,6 +230,20 @@ private:
       bins.push_back(n);
     }
   }
+
+  /*!
+   *  \brief Constructor that registers a new transition bin
+   */
+  template <typename... Args>
+  coverpoint(transition_bin<T> n, Args... args) : coverpoint(args...)
+  {
+    if (!n.is_empty())
+    {
+      std::reverse(n.intervals.begin(), n.intervals.end());
+      bins.push_back(n);
+    }
+  }
+  
   
   /*!
    *  \brief Constructor that takes the parent covergroup.

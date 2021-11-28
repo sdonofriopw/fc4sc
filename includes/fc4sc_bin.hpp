@@ -181,6 +181,40 @@ public:
   }
 };
 
+  /*!
+ * \brief Define a concrete class for transition bin sample strategies
+ * \tparam T Type of values in this bin
+ */
+template <typename T>
+class transition_bin_sample_strategy : public sample_strategy<T> {
+public:
+  transition_bin_sample_strategy(std::string n)  : sample_strategy<T>(n) {
+    index=0;
+  }
+private:
+  uint64_t index; 
+public:
+  /*!
+   * \brief After hitting all intervals (val1 -> val2 ...) then increment hit counts
+   * \param val Current sampled value
+   */  
+  virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
+    // Just search for the value in the intervals we have
+    for (size_t i = 0; i < intervals.size(); ++i)    
+      if (i == index) {
+        if (val >= intervals[intervals.size()-1-i].first && val <= intervals[intervals.size()-1-i].second)
+          {
+            index++;
+            if (index == intervals.size()) {
+              hits++;
+              return 1;
+            }
+          }
+      }
+    return 0;
+  }
+};
+
   
 /*!
  * \brief Defines a class for default bins
@@ -299,7 +333,7 @@ public:
   {
     return intervals;
   }
-
+  
   /*!
    *  \brief Return the bin type
    */
@@ -433,6 +467,49 @@ public:
 
   virtual ~ignore_bin() = default;
 };
+
+/*!
+ * \brief Bins that transition from value1 => value2 [=> value n] as described inside the IEEE 1800.
+ */
+
+template <class T> 
+class transition_bin final : public bin<T>
+{
+protected:
+  /* Virtual function used to register this bin inside a coverpoint */
+  virtual void add_to_cvp(coverpoint<T> &cvp) const override
+  {
+    cvp.bins.push_back(*this);
+  }
+
+  transition_bin() = delete;
+  
+public:
+  /*!
+   *  \brief Forward to parent constructor
+   */
+  template <typename... Args>
+  explicit transition_bin(Args... args)  : bin<T>::bin("transition",args...) {
+    static_assert(std::is_integral<T>::value, "Type must be integral!");          
+    this->ucis_bin_type = "user";
+    this->name = "";
+    for (size_t i = 0; i < this->intervals.size(); ++i) {
+      if (i > 0) {
+        this->name = this->name + " -> ";
+      }
+      if (this->intervals[this->intervals.size()-1-i].first == this->intervals[this->intervals.size()-1-i].second) {
+        this->name = this->name + std::to_string(this->intervals[this->intervals.size()-1-i].first);
+      }
+      else {
+        this->name = this->name + "["  + std::to_string(this->intervals[this->intervals.size()-1-i].first) + ":" + std::to_string(this->intervals[this->intervals.size()-1-i].second) + "]";
+      }
+    }
+    this->sample_context = std::make_shared<transition_bin_sample_strategy<T>>(this->name);
+  }
+
+  virtual ~transition_bin() = default;
+  
+};  
 
 /*!
  * \brief Bins that mask don't care care bits. The input argument is a string
@@ -640,6 +717,7 @@ public:
   bin_wrapper(illegal_bin<T>&& r) noexcept : bin_h(new illegal_bin<T>(std::move(r))) {}
   bin_wrapper(ignore_bin<T> && r) noexcept : bin_h(new ignore_bin<T> (std::move(r))) {}
   bin_wrapper(wildcard_bin<T> && r) noexcept : bin_h(new wildcard_bin<T> (std::move(r))) {}
+  bin_wrapper(transition_bin<T> && r) noexcept : bin_h(new transition_bin<T> (std::move(r))) {}
 };
 
 } // namespace fc4sc
