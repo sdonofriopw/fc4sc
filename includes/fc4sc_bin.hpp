@@ -221,6 +221,10 @@ public:
     return 0;
   }
 
+  /*!
+   * \brief Determine if a hit or miss occured and adjust the index accordingly
+   * \param val Current sampled value
+   */  
   bool find_hit(const T &val, std::vector<interval_t<T>>& intervals) {
     for (size_t i = 0; i < intervals.size(); ++i) {
       if (i == index) {
@@ -234,6 +238,8 @@ public:
         }
       } // if
     } // for 
+    assert(false);
+    return false; // should never hit this line - protected by assert
   } 
 
 };
