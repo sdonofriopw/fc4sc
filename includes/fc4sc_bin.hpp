@@ -195,27 +195,48 @@ private:
   uint64_t index; 
 public:
   /*!
-   * \brief After hitting all intervals (val1 -> val2 ...) then increment hit counts
+   * \brief After hitting all intervals (val1 -> val2 ...) consecutively then increment hit counts
    * \param val Current sampled value
    */  
   virtual uint64_t sample(const T &val, std::vector<interval_t<T>>& intervals, uint64_t &hits) override {
-    // Just search for the value in the intervals we have
-    for (size_t i = 0; i < intervals.size(); ++i)    
-      if (i == index) {
-        if (val >= intervals[intervals.size()-1-i].first && val <= intervals[intervals.size()-1-i].second)
-          {
-            index++;
-            if (index == intervals.size()) {
-              hits++;
-              return 1;
-            }
-          }
+    bool transition_active;
+    while (1) {
+      transition_active = false;
+      if (index > 0)
+        transition_active = true;
+      
+      if (find_hit(val,intervals) == true) {
+        if (index == intervals.size()) {
+          hits++;
+          index = 0;
+          return 1;
+        }
+        break;
       }
+      else
+        if (transition_active == false) {
+          break;
+        }
+    } // while
     return 0;
   }
-};
 
-  
+  bool find_hit(const T &val, std::vector<interval_t<T>>& intervals) {
+    for (size_t i = 0; i < intervals.size(); ++i) {
+      if (i == index) {
+        if (val >= intervals[intervals.size()-1-i].first && val <= intervals[intervals.size()-1-i].second) {
+          index++;
+          return true;
+        }
+        else {
+          index=0;
+          return false;
+        }
+      } // if
+    } // for 
+  } 
+
+};
 /*!
  * \brief Defines a class for default bins
  * \tparam T Type of values in this bin
@@ -490,7 +511,8 @@ public:
    */
   template <typename... Args>
   explicit transition_bin(Args... args)  : bin<T>::bin("transition",args...) {
-    static_assert(std::is_integral<T>::value, "Type must be integral!");          
+    static_assert(std::is_integral<T>::value, "Type must be integral!");
+    assert(this->intervals.size() > 1);
     this->ucis_bin_type = "user";
     this->name = "";
     for (size_t i = 0; i < this->intervals.size(); ++i) {
