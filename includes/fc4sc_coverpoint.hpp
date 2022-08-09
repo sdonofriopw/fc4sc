@@ -42,6 +42,8 @@
 
 #include "fc4sc_bin.hpp"
 
+
+
 namespace fc4sc
 {
 
@@ -78,7 +80,9 @@ private:
   friend class bin_array<T>;
   friend class ignore_bin<T>;
   friend class illegal_bin<T>;
-
+  friend class wildcard_bin<T>;
+  friend class transition_bin<T>;
+  
   bool has_sample_expression = false;
   /*!
    * String-ified sample expression. It can be used for reporting.
@@ -129,7 +133,9 @@ private:
 #ifdef FC4SC_DISABLE_SAMPLING
     return;
 #endif
+
     if (!collect) return;
+    
     this->last_sample_success = false;
 
     // 1) Search if the value is in the ignore bins
@@ -147,6 +153,7 @@ private:
         throw e;
       }
     }
+
     // Sample regular bins
     for (size_t i = 0; i < bins.size(); ++i) {
       if (bins[i].sample(cvp_val)) {
@@ -155,6 +162,7 @@ private:
         if (this->stop_sample_on_first_bin_hit) return;
       }
     }
+  
   
     if (!this->last_sample_success) { misses++; }
   }
@@ -211,6 +219,33 @@ private:
   }
 
   /*!
+   *  \brief Constructor that registers a new wildcard bin
+   */
+  template <typename... Args>
+  coverpoint(wildcard_bin<T> n, Args... args) : coverpoint(args...)
+  {
+    if (!n.is_empty())
+    {
+      std::reverse(n.intervals.begin(), n.intervals.end());
+      bins.push_back(n);
+    }
+  }
+
+  /*!
+   *  \brief Constructor that registers a new transition bin
+   */
+  template <typename... Args>
+  coverpoint(transition_bin<T> n, Args... args) : coverpoint(args...)
+  {
+    if (!n.is_empty())
+    {
+      std::reverse(n.intervals.begin(), n.intervals.end());
+      bins.push_back(n);
+    }
+  }
+  
+  
+  /*!
    *  \brief Constructor that takes the parent covergroup.
    */
   template <typename... Args>
@@ -232,6 +267,7 @@ public:
      * the bins. This is a needed assumption which makes the COVERPOINT macro
      * syntax work!
      */
+
     this->bins = std::move(rh.bins);
     this->ignore_bins = std::move(rh.ignore_bins);
     this->illegal_bins = std::move(rh.illegal_bins);
@@ -249,7 +285,8 @@ public:
       bin_w.get_bin()->add_to_cvp(*this);
     }
   }
-
+  
+  
   template <typename... Args>
   coverpoint(cvg_base *parent_cvg, Args... args) : coverpoint(args...) {
     static_assert(forbid_type<cvg_base *, Args...>::value, "Coverpoint constructor accepts only 1 parent covergroup pointer!");
@@ -271,6 +308,22 @@ public:
    */
   uint64_t size() {
     return bins.size();
+  }
+
+  /*!
+   *  \brief Retrieves all bins used by the coverage point
+   */
+  std::vector<bin<T>> get_bins() {
+    return bins;
+  }
+
+  /*!
+   *  \brief Retrieves the bin name
+   *  \param index of the bin
+   */
+  // FIXME STEVE add defensive code
+  std::string get_bin_name(uint64_t indx) const {
+    return bins[indx].get_bin_name();
   }
 
   void sample() 
@@ -297,12 +350,13 @@ public:
   double get_inst_coverage() const 
   {
     if (bins.empty()) // no bins defined
-      return (option.weight == 0) ? 100 : 0;
+        return (option.weight == 0) ? 100 : 0;
 
     double res = 0;
     for (auto &bin : bins)
       res += (bin.get_hitcount() >= option.at_least);
 
+    
     double real = res * 100 / bins.size();
 
     return (real >= this->option.goal) ? 100 : real;
@@ -329,6 +383,7 @@ public:
     for (auto &bin : bins)
       res += (bin.get_hitcount() >= option.at_least);
 
+    
     covered = res;
     double real = res * 100 / total;
     return (real >= this->option.goal) ? 100 : real;
@@ -384,7 +439,7 @@ public:
    */
   virtual void to_xml(std::ostream &stream) const
   {
-    stream << "<ucis:coverpoint ";
+    stream << "<coverpoint ";
     stream << "name=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
     stream << "key=\""
            << "KEY"
@@ -401,7 +456,7 @@ public:
     for (auto &bin : ignore_bins)
       bin.to_xml(stream);
 
-    stream << "</ucis:coverpoint>\n\n";
+    stream << "</coverpoint>\n\n";
   }
 
 };

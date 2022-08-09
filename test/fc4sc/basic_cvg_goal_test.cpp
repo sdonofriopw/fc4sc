@@ -65,7 +65,7 @@ TEST(cvg_options, goal) {
   EXPECT_EQ(basic_cg_1.get_coverage(), 75);
   EXPECT_EQ(basic_cg_1.get_coverage(), basic_cg_2.get_coverage());
   
-  basic_cg_1.type_option().goal = 75;
+  basic_cg_1.type_option().goal = 75; // STEVE - not input into UCIS - also UCIS does not handle this field based on my my review
   EXPECT_EQ(basic_cg_1.get_coverage(), 100);
 
   basic_cg_2.sample(2);
@@ -75,4 +75,6 @@ TEST(cvg_options, goal) {
   EXPECT_EQ(basic_cg_1.get_coverage(), 100);
   EXPECT_EQ(basic_cg_1.get_coverage(), basic_cg_2.get_coverage());
 
+  fc4sc::global::coverage_save("basic_cvg_goal_test_" + std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".xml");
+  
 }

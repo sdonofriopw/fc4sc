@@ -103,14 +103,14 @@ template<typename forbidden, typename first> struct forbid_type<forbidden, first
 // COVERPOINT macro for 3 arguments (no sample condition)
 #define CVP_3(type, cvp_name, sample_expr) \
         coverpoint<type> cvp_name = \
-        covergroup::register_cvp<type>(&cvp_name, #cvp_name, \
+        covergroup::cg_register_cvp<type>(&cvp_name, #cvp_name, \
         CREATE_WRAP_F(sample_expr, type), #sample_expr, \
         CREATE_WRAP_F(true, bool), std::string("")) =
 
 // COVERPOINT macro for 4 arguments (sample condition included)
 #define CVP_4(type, cvp_name, sample_expr, sample_cond) \
         coverpoint<type> cvp_name = \
-        covergroup::register_cvp<type>(&cvp_name, #cvp_name, \
+         covergroup::cg_register_cvp<type>(&cvp_name, #cvp_name, \
         CREATE_WRAP_F(sample_expr, type), #sample_expr, \
         CREATE_WRAP_F(sample_cond, bool), #sample_cond) =
 
@@ -141,6 +141,12 @@ static interval_t<T> interval(T t1, T t2) {
 }
 
 /*!
+ * \brief Defines a class for bin sample strategy
+ * \tparam T Type of values in this bin
+ */
+template <typename T> class sample_strategy;
+  
+/*!
  *  \class bin_base fc_base.hpp
  *  \brief Base class for bins
  *
@@ -149,6 +155,8 @@ static interval_t<T> interval(T t1, T t2) {
 class bin_base
 {
 public:
+
+
   /*!
    * \brief Function to print a bin to UCIS XML
    * \param stream Where to print
@@ -255,6 +263,11 @@ public:
 class cvg_base : public api_base
 {
 public:
+  /*  template<typename T>
+  coverpoint <T> cg_register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
+    std::function<T()>&& sample_expr, std::string&& sample_expr_str,
+    std::function<bool()>&& sample_cond, std::string&& sample_cond_str) {
+    } */
   virtual void register_cvp(cvp_base* const cvp) {
     // Runtime check to make sure that all the coverpoints are different.
     // Normally, this should be the case, but if for whatever reason this
@@ -283,6 +296,9 @@ public:
   /*! File where this type is declared */
   std::string file_name;
 
+  /*! File name id lookup hash */
+  uint32_t file_id;
+  
   /*! Aproximate line where this type is declared */
   uint32_t line;
 };

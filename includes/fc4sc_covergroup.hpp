@@ -58,7 +58,7 @@ protected:
    * via the COVERPOINT macro and should not be explicitly used!
    */
   template<typename T>
-  coverpoint <T> register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
+  coverpoint <T> cg_register_cvp(coverpoint <T>* cvp, std::string&& cvp_name,
     std::function<T()>&& sample_expr, std::string&& sample_expr_str,
     std::function<bool()>&& sample_cond, std::string&& sample_cond_str) {
 
@@ -74,6 +74,8 @@ protected:
     cvp_structure.name = cvp_name;
     return cvp_structure;
   }
+
+
 
   std::unordered_map<cvp_base *, cvp_metadata_t> cvp_strings;
 
@@ -236,20 +238,20 @@ public:
 
     stream << option << "\n";
 
-    stream << "<ucis:cgId cgName=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
+    stream << "<cgId cgName=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
     stream << "moduleName=\""
            << "INST_PARENT_MODULE"
            << "\">\n";
 
-    stream << "<ucis:cginstSourceId file=\""
-           << "1"
+    stream << "<cginstSourceId file=\""
+           << fc4sc::global::get_file_id(file_name)
            << "\" line=\""
-           << "1"
+           << "1"  // STEVE FIXME HARDCODED
            << "\" inlineCount=\"1\"/>\n";
-    stream << "<ucis:cgSourceId file=\"" << file_name << "\" "
+    stream << "<cgSourceId file=\"" << file_name << "\" "
            << "line=\"" << line << "\""
-           << " inlineCount=\"1\"/>\n";
-    stream << "</ucis:cgId>\n";
+           << " inlineCount=\"1\"/>\n";  // STEVE FIXME HARDCODED
+    stream << "</cgId>\n";
 
     // Print coverpoints
     for (auto& cvp : cvps)

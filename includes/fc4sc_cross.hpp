@@ -57,6 +57,10 @@ class cross : public cvp_base
   /*! Total number of bins in this cross */
   uint64_t total_coverpoints = 0;
 
+  /* NonTerminal size - first dimension size */
+  uint64_t non_terminal_size;
+  std::vector<uint64_t> terminal_size_vec;
+  
   /*!
    * \brief Helper function to recursively determine number of bins in a cross
    * \tparam Head Type of current processed coverpoint
@@ -124,10 +128,13 @@ class cross : public cvp_base
 public:
   /*! Hit cross bins storage */
   std::map<std::vector<size_t>, uint64_t> bins;
-
+  
   /*! Crossed coverpoints storage */
   std::vector<cvp_base *> cvps_vec;
 
+  /*! Each cross coverage point's bin names */  
+  std::vector<std::vector<std::string>> cvp_bin_names;
+  
   /*!
    *  \brief Main constructor
    *  \param n Parent covergroup
@@ -142,8 +149,61 @@ public:
     cvps_vec = std::vector<cvp_base*>{args...};
 
     std::reverse(cvps_vec.begin(), cvps_vec.end());
-  };
+    int i = 0; // coverage point counter
+    std::vector<std::vector<size_t>> my_bins; // temp bin vector used to setup this class's bins array
+    
+        
+    for (auto& cvp : {args...}) {
+      if ( i == 0) {
+        non_terminal_size = cvp->get_bins().size();
+        my_bins = build_cross_bins(cvp->get_bins().size());
+      }
+      else {
+        terminal_size_vec.push_back(cvp->get_bins().size()); 
+        my_bins = build_cross_bins(cvp->get_bins().size(), my_bins);
+      }
 
+      // parse through all coverage point bins to find the names
+      for (uint64_t j=0;j < cvp->get_bins().size();j++) {
+        cvp_bin_names.resize(i+1);
+        cvp_bin_names[i].push_back(cvp->get_bin_name(j));
+      }
+      i++;
+    }
+
+    // setup initial cross bins hit count of 0
+    for (uint64_t i = 0; i < my_bins.size(); i++) {
+      std::vector <size_t> new_bin;
+      for (uint64_t j = 0; j < my_bins[i].size(); j++) {
+        new_bin.push_back(my_bins[i][j]);
+      }
+      bins[new_bin] = 0;
+    }
+  };
+  
+
+  std::vector<std::vector<size_t>>  build_cross_bins(uint64_t size) {
+    std::vector<std::vector<size_t>> new_bins;
+    new_bins.resize(size);
+    
+    for(uint64_t i = 0;i < size;i++) {
+      new_bins[i].push_back(i);
+    }
+    return new_bins;
+  };
+  
+  std::vector<std::vector<size_t>> build_cross_bins(uint64_t size, std::vector<std::vector<size_t>> org_bins) {
+    std::vector<std::vector<size_t>> new_bins;
+    new_bins.resize(org_bins.size()*size);
+
+    for (uint64_t k = 0; k < org_bins.size()*size; k++) {
+      for(uint64_t j = 0; j < org_bins[k/size].size(); j++) {
+        new_bins[k].push_back(org_bins[k/size][j]);
+      }
+      new_bins[k].push_back(k%size);
+    }
+    return new_bins;
+  };
   
   template <typename... Restrictions, typename Select>
   cross(binsof<Select> binsof_inst,  Restrictions... binsofs) : cross (binsofs...) {
@@ -172,11 +232,20 @@ public:
       if (cvp->last_sample_success) {
         hit_bins.push_back(cvp->last_bin_index_hit);
       }
-      else {
+      else { 
         misses++;
         return;
       }
     }
+    // need to reverse to match cvps_vec in constructor
+    std::reverse(hit_bins.begin(), hit_bins.end());
+    // make sure hit index is not out of range    
+    for (uint64_t i = 0; i < hit_bins.size(); i++) { 
+      assert(hit_bins[i] <= (cvp_bin_names[i].size()-1)); 
+    }
+    // make sure this element is included in the bins map
+    assert(bins.find(hit_bins) != bins.end());
+    // increment this element's cross bin counter
     bins[hit_bins]++;
   }
 
@@ -191,7 +260,7 @@ public:
     int total = total_coverpoints;
 
     if (total == 0)
-      return (this->option.weight == 0) ? 100 : 0;
+      return (this->option.weight == 0) ? 100 : 0; 
 
     for (auto it : bins)
     {
@@ -250,7 +319,7 @@ public:
   {
     collect = false;
   };
-
+  
   /*!
    * \brief print instance in UCIS XML format
    * \param stream Where to print
@@ -258,7 +327,7 @@ public:
   void to_xml(std::ostream &stream) const
   {
 
-    stream << "<ucis:cross ";
+    stream << "<cross ";
     stream << "name=\"" << fc4sc::global::escape_xml_chars(this->name) << "\" ";
     stream << "key=\""
            << "KEY"
@@ -267,45 +336,60 @@ public:
 
     stream << option << "\n";
 
+    
     for (auto &cvp : cvps_vec)
     {
-      stream << "<ucis:crossExpr>" << cvp->name << "</ucis:crossExpr> \n";
+      stream << "<crossExpr>" << cvp->name << "</crossExpr> \n";
     }
+    uint64_t i = 0; // non-terminal counter
+    uint64_t j = 0; // terminal counter
+    uint64_t terminal_size = terminal_size_vec[terminal_size_vec.size()-1];
 
     for (auto& bin : bins)
     {
-      stream << "<ucis:crossBin \n";
+      std::string temp_name="";
+      stream << "<crossBin \n";
+      std::vector<size_t> temp = bin.first;
+      for(uint64_t q = 0;q<temp.size();q++) {
+        temp_name = temp_name + " ";
+        temp_name = temp_name + cvp_bin_names[q][temp[q]];
+      }
       stream << "name=\""
-             << ""
+             << temp_name
              << "\"  \n";
       stream << "key=\"" << 0 << "\" \n";
       stream << "type=\""
-             << "default"
+             << "user"
              << "\" \n";
       stream << "> \n";
 
-      for (auto& index : bin.first)
-        stream << "<ucis:index>" << index << "</ucis:index>\n";
-
-      stream << "<ucis:contents \n";
+      stream << "<userCrossBinIndex>" << " \n";
+      stream << "<crossNodeNonterminalRange low=\"" << i << "\" high=\"" << i << "\" >\n";
+      
+      stream << "<crossNodeTerminalRange low=\"" << j << "\" high=\"" << j << "\" /> \n";
+      stream << "</crossNodeNonterminalRange>" << " \n";
+      
+      stream << "</userCrossBinIndex>" << " \n";
+      
+      stream << "<contents \n";
       stream << "coverageCount=\"" << bin.second << "\"> \n";
-      stream << "</ucis:contents> \n";
+      stream << "</contents> \n";
 
-      stream << "</ucis:crossBin> \n";
+      stream << "</crossBin> \n";
+
+      if (j == terminal_size-1) {
+        j = 0;
+        i++;
+      }
+      else
+        j++;
     }
-
-    stream << "<ucis:userAttr \n";
-    stream << "key=\"" << total_coverpoints << "\" \n";
-    stream << "type=\""
-           << "int"
-           << "\" \n";
-    stream << "/> \n";
-
-    stream << "</ucis:cross>\n";
+    stream << "</cross>\n";
 
     return;
   };
 };
+
 
 } // namespace fc4sc
 
